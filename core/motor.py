@@ -1,3 +1,8 @@
+import argparse
+import os
+import sys
+import json
+from pathlib import Path
 def motor_nacional_masivo(lista):
     for p in lista:
         p.formula_elegibilidad_nacional()
