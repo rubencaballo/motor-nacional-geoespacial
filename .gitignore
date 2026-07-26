@@ -1,0 +1,10 @@
+*.db
+*.sqlite
+*.gpkg
+export_icm/
+outputs/
+__pycache__/
+.venv/
+checkpoint*.json
+*.tif
+.DS_Store
