@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field
+from typing import List, Optional
 class EvidenciaNICFI:
     disponible: bool = False
     ndvi_antiguo: Optional[float] = None
