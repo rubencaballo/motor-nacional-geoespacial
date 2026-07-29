@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""FIX 4: eliminacion jerarquica de traslapes entre poligonos."""
+from config import log
+
+
 def eliminar_traslapes_jerarquico(gdf, campo_prioridad=None):
     """
     Elimina traslapes entre polígonos de forma jerárquica: el polígono de
@@ -66,4 +72,3 @@ def eliminar_traslapes_jerarquico(gdf, campo_prioridad=None):
     return gdf
 
 
-# ============== ML ==============

@@ -1,3 +1,35 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""PredioNacional: unica definicion. Depende de config (constantes) y de
+modelos.evidencia (EvidenciaNICFI) -- ambos importados explicitamente, a
+diferencia de la version rota anterior que no importaba nada."""
+import hashlib
+import json
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import List, Optional
+
+from config import (
+    CORTE_EUDR, MIN_CLUSTER_HANSEN, AREA_MIN_HANSEN_HA, CAIDA_NDVI_MAX,
+    JRC_MIN_VERDE, JRC_MIN_VERDE_NICFI, UMBRAL_CAFE_TREECOVER, UMBRAL_CAFE_NDVI,
+    UMBRAL_CAFE_NDVI_STD, ALTITUD_CAFE, ALTITUD_AGUACATE, UMBRAL_SILVO,
+    UMBRAL_SILVO_NDVI, PESOS_PRIORIZACION, MIN_PIXELES_CONFIANZA_ALTA,
+    MIN_PIXELES_CONFIANZA_MEDIA, VERSION,
+)
+from modelos.evidencia import EvidenciaNICFI
+
+# ADAPTADOR_ML_GLOBAL se inyecta desde core.motor al arrancar main() para
+# evitar import circular (ml.modelo tambien podria necesitar PredioNacional
+# en el futuro). Si nadie lo inyecta, sigue en None y el motor usa reglas.
+ADAPTADOR_ML_GLOBAL = None
+
+
+def set_adaptador_ml(adaptador):
+    global ADAPTADOR_ML_GLOBAL
+    ADAPTADOR_ML_GLOBAL = adaptador
+
+
+@dataclass
 class PredioNacional:
     id_predio: str
     estado: str = ""
@@ -174,4 +206,3 @@ class PredioNacional:
         self.fecha = datetime.now(timezone.utc).isoformat()
 
 
-# ============== DB NACIONAL ==============

@@ -8,3 +8,8 @@ __pycache__/
 checkpoint*.json
 *.tif
 .DS_Store
+*.db
+*.pyc
+__pycache__/
+checkpoint_nacional_poderoso.json
+export_icm/

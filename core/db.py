@@ -1,3 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Base de datos (SQLite WAL) y checkpoint por estado."""
+import json
+import os
+import sqlite3
+from datetime import datetime, timezone
+
+from config import DB_PATH, CHECKPOINT_PATH
+
+
 def init_db_nacional():
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA journal_mode=WAL;")
