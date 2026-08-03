@@ -246,7 +246,9 @@ def main():
         for r in res:
             print(f"{r.id_predio} | {r.superficie_ha}ha | {r.estado} | B={r.B_treecover:.0f}% JRC={r.JRC_pct:.0f}% "
                   f"confianza_hansen={r.confianza_hansen} ({r.n_pixeles_hansen}px) NICFI={r.nicfi.disponible}")
-            print(f"  => {r.color} | {r.dictamen_corto} | Sistema:{r.sistema} | Checksum:{r.checksum_integridad}")
+            print(f"  => {r.color} | {r.dictamen_corto} | Sistema:{r.sistema} | "
+                  f"Checksum(auditoria,con_version):{r.checksum_integridad} | "
+                  f"HashResultado(regresion,sin_version):{r.hash_resultado}")
             print(f"  Evidencia: {r.texto_evidencia[:220]}...\n")
 
     if args.pruebita:

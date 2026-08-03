@@ -74,6 +74,7 @@ class PredioNacional:
     score_prioridad: float = 0.0
     hash_geo: str = ""
     checksum_integridad: str = ""
+    hash_resultado: str = ""
     motivos_incompleto: List[str] = field(default_factory=list)
     version: str = VERSION
     fecha: str = ""
@@ -203,6 +204,8 @@ class PredioNacional:
         self.hash_geo = hashlib.sha256(geom_str.encode()).hexdigest()[:16]
         payload = f"{self.id_predio}{self.hash_geo}{self.B_treecover:.2f}{self.D_ha_validada:.4f}{self.color}{VERSION}"
         self.checksum_integridad = hashlib.sha256(payload.encode()).hexdigest()[:16]
+        payload_contenido = f"{self.id_predio}{self.hash_geo}{self.B_treecover:.2f}{self.D_ha_validada:.4f}{self.color}"
+        self.hash_resultado = hashlib.sha256(payload_contenido.encode()).hexdigest()[:16]
         self.fecha = datetime.now(timezone.utc).isoformat()
 
 
