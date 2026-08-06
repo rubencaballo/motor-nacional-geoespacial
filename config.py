@@ -32,6 +32,11 @@ ALTITUD_CAFE = (800, 1500)
 ALTITUD_AGUACATE = (1500, 2400)
 PESOS_PRIORIZACION = {'riesgo': 0.30, 'carbono': 0.25, 'aptitud': 0.20, 'marginacion': 0.15, 'conectividad': 0.10}
 
+# --- core/geomatica.py: pipeline geomático/hidrológico por zonas (D8) ---
+CARPETA_SRTM = os.environ.get("IRDCLOUD_SRTM_DIR", os.path.expanduser("~/srtm_temp/"))
+ZONAS_ANALISIS_M = [0, 500, 1000]  # buffers en metros: nucleo, +500m, +1000m
+PERCENTIL_CAUCE_HIDROLOGIA = 92  # percentil de acumulacion de flujo D8 para declarar cauce
+
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
 
