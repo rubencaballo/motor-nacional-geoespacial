@@ -196,48 +196,115 @@ def calcular_hidrologia_d8(dst_array, meta_utm, geom_utm_nucleo, zonas_m, buf_vi
     Z_smooth = gaussian_filter(z_filled_viz, sigma=1.0)
     Z_smooth[~valid_viz] = np.nan
 
+    # Elevación SIN suavizar (para el hover -- el suavizado es solo para
+    # que la superficie se vea bien visualmente, pero distorsiona el valor
+    # real de elevación en un punto específico, sobre todo en picos/crestas
+    # angostas. El hover debe mostrar el dato real, no el visual.
+    Z_raw = np.where(valid_viz, z_viz, np.nan)
+
     return {
-        "Z_smooth": Z_smooth, "stream_mask": stream_mask, "zona_de_pixel": zona_de_pixel,
-        "pw_v": pw_v, "ph_v": ph_v,
+        "Z_smooth": Z_smooth, "Z_raw": Z_raw, "stream_mask": stream_mask, "zona_de_pixel": zona_de_pixel,
+        "pw_v": pw_v, "ph_v": ph_v, "transform": trans_viz,
     }
 
 
-def generar_mapa_3d(hidrologia, id_proyecto, html_path):
+def calcular_grid_latlon(transform, utm_crs, rows, cols):
+    """Calcula lat/lon (WGS84) para cada píxel de la malla (centro de
+    píxel), para poder mostrar coordenadas reales al pasar el mouse sobre
+    el mapa 3D -- en vez de solo kilómetros locales sin referencia
+    geográfica, que no sirven para ubicar el punto en un mapa real."""
+    import pyproj
+    proj_a_wgs84 = pyproj.Transformer.from_crs(utm_crs, "EPSG:4326", always_xy=True)
+    cols_idx, rows_idx = np.meshgrid(np.arange(cols) + 0.5, np.arange(rows) + 0.5)
+    xs, ys = transform * (cols_idx, rows_idx)
+    lons, lats = proj_a_wgs84.transform(xs, ys)
+    return lats, lons
+
+
+def generar_mapa_3d(hidrologia, id_proyecto, html_path, subtitulo=None, utm_crs=None):
     """Genera el HTML interactivo con Plotly a partir del resultado de
     calcular_hidrologia_d8(). Import de plotly aquí mismo, mismo criterio
-    que con pysheds."""
+    que con pysheds. `subtitulo` es opcional y agnóstico de su origen (por
+    ejemplo, core/carbono.py lo usa para añadir CO2e por zona) -- este
+    módulo no sabe ni le importa de dónde viene el texto, solo lo agrega
+    como segunda línea del título.
+
+    `utm_crs`: si se da, se calcula lat/lon real por punto y se muestra en
+    el hover (además de los km locales) -- así se puede ubicar cualquier
+    punto del mapa de inmediato (copiar/pegar a Google Maps), sin tener
+    que traducir manualmente coordenadas locales."""
     import plotly.graph_objects as go
 
     Z_smooth = hidrologia["Z_smooth"]
+    Z_raw = hidrologia.get("Z_raw", Z_smooth)  # por compatibilidad si algún llamador viejo no lo trae
     stream_mask = hidrologia["stream_mask"]
     zona_de_pixel = hidrologia["zona_de_pixel"]
     pw_v, ph_v = hidrologia["pw_v"], hidrologia["ph_v"]
+    transform = hidrologia.get("transform")
 
     rows, cols = Z_smooth.shape
     X, Y = np.meshgrid(np.arange(cols) * pw_v / 1000.0, np.flipud(np.arange(rows) * ph_v / 1000.0))
 
+    lat_grid = lon_grid = None
+    if utm_crs and transform is not None:
+        lat_grid, lon_grid = calcular_grid_latlon(transform, utm_crs, rows, cols)
+
     fig = go.Figure()
-    fig.add_trace(go.Surface(z=Z_smooth, x=X, y=Y, colorscale="Earth", connectgaps=False, name="Terreno 3D"))
+    if lat_grid is not None:
+        # customdata: [altitud REAL (sin suavizar), lat, lon] -- el %{z} del
+        # trace sigue siendo la superficie suavizada (para que se vea bien),
+        # pero el hover muestra la altitud real del pixel, no la suavizada.
+        customdata_superficie = np.dstack([Z_raw, lat_grid, lon_grid])
+        fig.add_trace(go.Surface(
+            z=Z_smooth, x=X, y=Y, colorscale="Earth", connectgaps=False, name="Terreno 3D",
+            customdata=customdata_superficie,
+            hovertemplate="Altitud: %{customdata[0]:.0f} msnm<br>Lat: %{customdata[1]:.5f}<br>Lon: %{customdata[2]:.5f}<extra></extra>",
+        ))
+    else:
+        fig.add_trace(go.Surface(z=Z_smooth, x=X, y=Y, colorscale="Earth", connectgaps=False, name="Terreno 3D"))
 
     colores_zona = {"nucleo": "red", "buffer_500m": "orange", "buffer_1000m": "gold"}
     river_y, river_x = np.where(stream_mask)
     if len(river_x) > 0:
-        river_y_plotly = (rows - 1) - river_y
         for etiqueta, color in colores_zona.items():
             sel = zona_de_pixel[river_y, river_x] == etiqueta
             if not np.any(sel):
                 continue
+            # BUG CORREGIDO: antes se indexaba X/Y/Z con "river_y_plotly"
+            # (un segundo flip sobre river_y), cuando X y Y YA tienen el
+            # flip codificado en su propia construcción (arriba). Usar
+            # river_y_plotly aquí colocaba el punto en la fila espejo
+            # equivocada -- posición Y y elevación de OTRO pixel del
+            # raster, no del cauce real. river_y/river_x (los índices
+            # reales del pixel) son los correctos para indexar X, Y, Z.
+            altitudes_reales = Z_raw[river_y[sel], river_x[sel]]
+            kwargs_extra = {}
+            if lat_grid is not None:
+                customdata_pts = np.column_stack([
+                    altitudes_reales,
+                    lat_grid[river_y[sel], river_x[sel]],
+                    lon_grid[river_y[sel], river_x[sel]],
+                ])
+                kwargs_extra = dict(
+                    customdata=customdata_pts,
+                    hovertemplate=f"Cauce ({etiqueta})<br>Altitud: %{{customdata[0]:.0f}} msnm<br>"
+                                  f"Lat: %{{customdata[1]:.5f}}<br>Lon: %{{customdata[2]:.5f}}<extra></extra>",
+                )
             fig.add_trace(go.Scatter3d(
-                x=X[river_y_plotly[sel], river_x[sel]],
-                y=Y[river_y_plotly[sel], river_x[sel]],
-                z=Z_smooth[river_y_plotly[sel], river_x[sel]] + 12,
+                x=X[river_y[sel], river_x[sel]],
+                y=Y[river_y[sel], river_x[sel]],
+                z=Z_smooth[river_y[sel], river_x[sel]] + 12,
                 mode="markers", marker=dict(size=2.2, color=color, opacity=0.9),
-                name=f"Cauce en {etiqueta}",
+                name=f"Cauce en {etiqueta}", **kwargs_extra,
             ))
 
+    titulo = (f"Modelo Hidrológico D8 por zonas - {id_proyecto} "
+              f"(núcleo=rojo, buffer 500m=naranja, buffer 1000m=dorado)")
+    if subtitulo:
+        titulo += f"<br><sub>{subtitulo}</sub>"
+
     fig.update_layout(
-        title=f"Modelo Hidrológico D8 por zonas - {id_proyecto} "
-              f"(núcleo=rojo, buffer 500m=naranja, buffer 1000m=dorado)",
+        title=titulo,
         scene=dict(xaxis_title="Este [km]", yaxis_title="Norte [km]", zaxis_title="Altitud [msnm]",
                    aspectmode="manual", aspectratio=dict(x=1, y=1, z=0.7)),
         autosize=True,
@@ -246,21 +313,15 @@ def generar_mapa_3d(hidrologia, id_proyecto, html_path):
     return html_path
 
 
-# ==============================================================================
-# --- ORQUESTADOR CON DATOS REALES (SRTM real, requiere red la primera vez) ---
-# ==============================================================================
-def procesar_sitio_real(geojson_path, id_proyecto, zonas_m=None, percentil_cauce=None,
-                         carpeta_salida=None, carpeta_srtm=None):
-    """Pipeline completo con datos reales: descarga/lee SRTM, calcula
-    métricas por zona, corre D8 y genera el mapa 3D. Devuelve
-    (df_zonas, csv_path, html_path)."""
+def cargar_dem_utm(geojson_path, zonas_m, carpeta_srtm=None):
+    """Descarga/lee el SRTM del sitio y lo reproyecta a UTM. Extraído de
+    procesar_sitio_real() para poder reutilizarse desde otros módulos (ej.
+    core/carbono.py) sin duplicar este bloque ni descargar el DEM dos
+    veces -- si el .tif ya existe en carpeta_srtm, se reusa tal cual.
+    Devuelve (geom_utm_nucleo, dst_array, meta_utm, utm_crs)."""
     import elevation
 
-    zonas_m = zonas_m if zonas_m is not None else ZONAS_ANALISIS_M
-    percentil_cauce = percentil_cauce if percentil_cauce is not None else PERCENTIL_CAUCE_HIDROLOGIA
     carpeta_srtm = carpeta_srtm or CARPETA_SRTM
-    carpeta_salida = carpeta_salida or os.path.expanduser(f"~/resultados_{id_proyecto.lower()}")
-    os.makedirs(carpeta_salida, exist_ok=True)
     os.makedirs(carpeta_srtm, exist_ok=True)
 
     if not os.path.exists(geojson_path):
@@ -275,7 +336,8 @@ def procesar_sitio_real(geojson_path, id_proyecto, zonas_m=None, percentil_cauce
         bounds[0] - margen_grados, bounds[1] - margen_grados,
         bounds[2] + margen_grados, bounds[3] + margen_grados,
     )
-    tif_path = os.path.join(carpeta_srtm, f"srtm_{id_proyecto}.tif")
+    id_proyecto_tif = os.path.splitext(os.path.basename(geojson_path))[0]
+    tif_path = os.path.join(carpeta_srtm, f"srtm_{id_proyecto_tif}.tif")
     if not os.path.exists(tif_path):
         log("Descargando modelo de elevación SRTM...")
         elevation.clip(bounds=(west, south, east, north), output=os.path.abspath(tif_path))
@@ -303,6 +365,24 @@ def procesar_sitio_real(geojson_path, id_proyecto, zonas_m=None, percentil_cauce
         "driver": "GTiff", "height": height, "width": width,
         "count": 1, "dtype": "float32", "crs": utm_crs, "transform": transform,
     }
+    return geom_utm_nucleo, dst_array, meta_utm, utm_crs
+
+
+# ==============================================================================
+# --- ORQUESTADOR CON DATOS REALES (SRTM real, requiere red la primera vez) ---
+# ==============================================================================
+def procesar_sitio_real(geojson_path, id_proyecto, zonas_m=None, percentil_cauce=None,
+                         carpeta_salida=None, carpeta_srtm=None):
+    """Pipeline completo con datos reales: descarga/lee SRTM, calcula
+    métricas por zona, corre D8 y genera el mapa 3D. Devuelve
+    (df_zonas, csv_path, html_path)."""
+    zonas_m = zonas_m if zonas_m is not None else ZONAS_ANALISIS_M
+    percentil_cauce = percentil_cauce if percentil_cauce is not None else PERCENTIL_CAUCE_HIDROLOGIA
+    carpeta_salida = carpeta_salida or os.path.expanduser(f"~/resultados_{id_proyecto.lower()}")
+    carpeta_srtm = carpeta_srtm or CARPETA_SRTM
+    os.makedirs(carpeta_salida, exist_ok=True)
+
+    geom_utm_nucleo, dst_array, meta_utm, utm_crs = cargar_dem_utm(geojson_path, zonas_m, carpeta_srtm)
 
     df_zonas = calcular_metricas_por_zona(geom_utm_nucleo, dst_array, meta_utm, zonas_m)
     csv_path = os.path.join(carpeta_salida, f"features_por_zona_{id_proyecto.lower()}.csv")
@@ -314,7 +394,7 @@ def procesar_sitio_real(geojson_path, id_proyecto, zonas_m=None, percentil_cauce
         utm_crs, percentil_cauce, carpeta_srtm, id_proyecto,
     )
     html_path = os.path.join(carpeta_salida, f"{id_proyecto.lower()}_3d_zonas.html")
-    generar_mapa_3d(hidrologia, id_proyecto, html_path)
+    generar_mapa_3d(hidrologia, id_proyecto, html_path, utm_crs=utm_crs)
     log(f"Mapa 3D: {html_path}")
 
     return df_zonas, csv_path, html_path
@@ -372,7 +452,7 @@ def demo():
             utm_crs, PERCENTIL_CAUCE_HIDROLOGIA, carpeta_tmp, id_proyecto,
         )
         html_path = os.path.join(carpeta_tmp, f"{id_proyecto.lower()}_3d_zonas.html")
-        generar_mapa_3d(hidrologia, id_proyecto, html_path)
+        generar_mapa_3d(hidrologia, id_proyecto, html_path, utm_crs=utm_crs)
         log(f"Mapa 3D demo generado en: {html_path}")
     except ImportError as e:
         log(f"pysheds/plotly no instalado, se omite hidrología en el demo: {e}", nivel="WARN")
