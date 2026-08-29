@@ -71,6 +71,14 @@ FACTOR_C_A_CO2 = 44 / 12  # razon molecular CO2/C
 GEDI_DATASET_L4A = "LARSE/GEDI/GEDI04_A_002_MONTHLY"
 GEDI_ESCALA_M = 25  # resolucion nominal de la huella GEDI
 
+# --- core/cuenca_completa.py: delimitacion de cuenca real entre dos sitios ---
+MARGEN_CORREDOR_GRADOS = 0.05  # ~5.5km de margen extra alrededor del bbox que envuelve
+# origen + punto de salida, para que la cuenca real delimitada por catchment() no se
+# corte artificialmente en el borde del DEM del corredor.
+PERCENTIL_SNAP_CAUCE = 95  # percentil de acumulacion de flujo D8 usado por snap_to_mask()
+# para ajustar el punto de salida dado (coordenadas aproximadas) a la celda de cauce
+# real mas cercana -- sin esto, catchment() puede delimitar una cuenca chueca o vacia.
+
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
 

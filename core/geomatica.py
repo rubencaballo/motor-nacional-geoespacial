@@ -147,12 +147,25 @@ def calcular_metricas_por_zona(geom_utm_nucleo, dst_array, meta_utm, zonas_m):
 
 
 def calcular_hidrologia_d8(dst_array, meta_utm, geom_utm_nucleo, zonas_m, buf_visual_m,
-                            utm_crs, percentil_cauce, carpeta_srtm, id_proyecto):
+                            utm_crs, percentil_cauce, carpeta_srtm, id_proyecto,
+                            sigma_suavizado=0.0):
     """Corre D8 (pysheds) sobre la zona más grande y devuelve todo lo
-    necesario para graficar: superficie suavizada, máscara de cauces, y a
+    necesario para graficar: superficie visual, máscara de cauces, y a
     qué zona pertenece cada píxel de cauce. Requiere pysheds -- se importa
     aquí (no al inicio del módulo) para que el resto del módulo funcione
-    aunque pysheds no esté instalado."""
+    aunque pysheds no esté instalado.
+
+    `sigma_suavizado`: sigma del filtro gaussiano aplicado SOLO a la
+    geometría visual de la superficie 3D (Z_smooth) -- no afecta D8, no
+    afecta metricas_de_zona() ni ningún CSV, esos siempre usan la
+    elevación real. Default 0.0 = SIN suavizar: la malla que se dibuja
+    es literalmente la elevación real (Z_raw), así que el hover y la
+    geometría bajo el mouse siempre coinciden, píxel a píxel, incluso en
+    picos y crestas angostas. Subir este valor (ej. 0.3-1.0) da un
+    aspecto visual más pulido a costa de que el hover en terreno muy
+    quebrado pueda mostrar un píxel vecino en vez del literal bajo el
+    cursor (limitación de cómo Plotly hace hit-testing en superficies
+    3D, no de este código)."""
     from pysheds.grid import Grid
 
     geom_visual = geom_utm_nucleo.buffer(buf_visual_m) if buf_visual_m > 0 else geom_utm_nucleo
@@ -193,13 +206,23 @@ def calcular_hidrologia_d8(dst_array, meta_utm, geom_utm_nucleo, zonas_m, buf_vi
         etiqueta = "nucleo" if buf_m == 0 else f"buffer_{buf_m}m"
         zona_de_pixel[mascara_zona & (zona_de_pixel == "fuera")] = etiqueta
 
-    Z_smooth = gaussian_filter(z_filled_viz, sigma=1.0)
-    Z_smooth[~valid_viz] = np.nan
+    if sigma_suavizado and sigma_suavizado > 0:
+        Z_smooth = gaussian_filter(z_filled_viz, sigma=sigma_suavizado)
+        Z_smooth[~valid_viz] = np.nan
+    else:
+        # Sin suavizar (default): la geometría que se dibuja es la
+        # elevación real, sin pasar por gaussian_filter -- así el vértice
+        # que Plotly selecciona bajo el mouse SIEMPRE es el mismo dato que
+        # se reporta en el hover. Con sigma>0 esto se ve más "pulido" pero
+        # un pico angosto puede quedar aplanado/desplazado en la malla, y
+        # entonces el hover visualmente "encima del pico" en realidad
+        # selecciona un vértice vecino -- eso fue lo que causó la lectura
+        # de 1299msnm en vez de ~1481msnm en el Acamalín.
+        Z_smooth = np.where(valid_viz, z_filled_viz, np.nan)
 
-    # Elevación SIN suavizar (para el hover -- el suavizado es solo para
-    # que la superficie se vea bien visualmente, pero distorsiona el valor
-    # real de elevación en un punto específico, sobre todo en picos/crestas
-    # angostas. El hover debe mostrar el dato real, no el visual.
+    # Elevación real (idéntica a Z_smooth cuando sigma_suavizado=0, se
+    # mantiene como variable aparte por claridad y por si sigma_suavizado>0):
+    # el hover SIEMPRE debe mostrar el dato real, nunca el suavizado.
     Z_raw = np.where(valid_viz, z_viz, np.nan)
 
     return {
@@ -297,6 +320,40 @@ def generar_mapa_3d(hidrologia, id_proyecto, html_path, subtitulo=None, utm_crs=
                 mode="markers", marker=dict(size=2.2, color=color, opacity=0.9),
                 name=f"Cauce en {etiqueta}", **kwargs_extra,
             ))
+
+    # ==========================================================================
+    # --- PUNTO MÁS ALTO REAL POR ZONA (marcador explícito) ---
+    # No depende de que el usuario acierte con el mouse en una vista 3D
+    # rotada -- en perspectiva, lo que se ve "arriba" en pantalla no siempre
+    # es el vértice con mayor elevación real (paralaje: un punto más cercano
+    # a la cámara puede proyectarse más arriba que un pico real más al
+    # fondo). Aquí se calcula el argmax real de Z_raw dentro de cada zona
+    # (anillo exclusivo, igual que zona_de_pixel) y se marca explícitamente
+    # con su altitud y lat/lon ya escritos -- sin ambigüedad de interpretación.
+    # ==========================================================================
+    for etiqueta, color in colores_zona.items():
+        mask_zona = (zona_de_pixel == etiqueta) & ~np.isnan(Z_raw)
+        if not np.any(mask_zona):
+            continue
+        idxs = np.argwhere(mask_zona)
+        alturas = Z_raw[mask_zona]
+        fy, fx = idxs[np.argmax(alturas)]
+        alt_real = float(Z_raw[fy, fx])
+        x_pt, y_pt, z_pt = X[fy, fx], Y[fy, fx], Z_smooth[fy, fx] + 15
+
+        texto_hover = f"Punto más alto real -- {etiqueta}<br>Altitud: {alt_real:.0f} msnm"
+        if lat_grid is not None:
+            lat_pt, lon_pt = float(lat_grid[fy, fx]), float(lon_grid[fy, fx])
+            texto_hover += f"<br>Lat: {lat_pt:.5f}<br>Lon: {lon_pt:.5f}"
+
+        fig.add_trace(go.Scatter3d(
+            x=[x_pt], y=[y_pt], z=[z_pt],
+            mode="markers+text",
+            marker=dict(size=6, color=color, symbol="diamond", line=dict(color="black", width=1)),
+            text=[f"▲ {alt_real:.0f}m"], textposition="top center",
+            hovertext=[texto_hover], hoverinfo="text",
+            name=f"Punto más alto real ({etiqueta})",
+        ))
 
     titulo = (f"Modelo Hidrológico D8 por zonas - {id_proyecto} "
               f"(núcleo=rojo, buffer 500m=naranja, buffer 1000m=dorado)")
