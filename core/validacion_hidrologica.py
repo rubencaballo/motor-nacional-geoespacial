@@ -51,7 +51,7 @@ import geopandas as gpd
 from shapely.geometry import Point, LineString
 from scipy.spatial import cKDTree
 
-from config import TOLERANCIA_VALIDACION_HIDRO_M, ZONAS_ANALISIS_M, log
+from config import TOLERANCIA_VALIDACION_HIDRO_M, ZONAS_ANALISIS_M, PERCENTIL_CAUCE_HIDROLOGIA, log
 
 
 # ==============================================================================
@@ -133,6 +133,54 @@ def validar_zona(puntos_d8_xy, puntos_referencia_xy, tolerancia_m):
     }
 
 
+def _validar_por_zona_con_total(zona_por_punto, xy_puntos_d8, puntos_ref, zonas_m, tolerancia_m):
+    """Corre validar_zona() por cada zona (nucleo + buffers) y agrega una
+    fila TOTAL al final. Las zonas de zona_por_punto ya son EXCLUSIVAS por
+    diseño -- cada píxel de cauce D8 pertenece a una sola zona (ver
+    core/geomatica.py, calcular_hidrologia_d8: itera los buffers de menor a
+    mayor y solo asigna los píxeles que siguen marcados "fuera"), así que
+    sumar/juntar zonas aquí no duplica ningún punto.
+
+    El TOTAL se calcula corriendo validar_zona() sobre la UNIÓN real de
+    todos los puntos D8 -- nunca como promedio de los % por zona. Promediar
+    los porcentajes sería el mismo error de fondo ya corregido en
+    core/carbono_perdida.py (generar_balance_stock_vs_perdida): si las
+    zonas tienen tamaños de muestra distintos, un promedio simple no
+    representa el total real. Ej. con los datos reales de Cofre de Perote
+    (nucleo 1806 pts al 41.7%, buffer_500m 1154 pts al 56.2%, buffer_1000m
+    821 pts al 54.7%), el promedio simple de los tres % da 50.9%, pero el
+    TOTAL correcto (ponderado por cuántos puntos tiene cada zona,
+    equivalente a recalcularlo sobre todos los puntos juntos) da 48.9% --
+    una diferencia real, no redondeo.
+
+    Devuelve una lista de dicts (uno por zona + uno TOTAL al final), lista
+    para pd.DataFrame(...). Usado por validar_sitio_real() y
+    generar_mapa_3d_validacion() -- antes cada una tenía su propio bucle
+    casi idéntico para armar el CSV por zona, con el riesgo de que un
+    cambio futuro se aplicara a una copia y no a la otra."""
+    zona_por_punto = np.asarray(zona_por_punto)
+    filas = []
+    for etiqueta in ["nucleo"] + [f"buffer_{b}m" for b in sorted(zonas_m) if b > 0]:
+        sel = zona_por_punto == etiqueta
+        sub_puntos = xy_puntos_d8[sel] if len(xy_puntos_d8) else np.empty((0, 2))
+        r = validar_zona(sub_puntos, puntos_ref, tolerancia_m)
+        r["zona"] = etiqueta
+        r["tolerancia_m"] = tolerancia_m
+        filas.append(r)
+        log(f"  Zona {etiqueta}: {r['n_puntos_d8']} píxeles de cauce D8, "
+            f"{r['pct_dentro_tolerancia']}% dentro de {tolerancia_m}m de la red oficial "
+            f"(dist. promedio: {r['distancia_promedio_m']}m)")
+
+    r_total = validar_zona(xy_puntos_d8, puntos_ref, tolerancia_m)
+    r_total["zona"] = "TOTAL (todas las zonas, sin traslape)"
+    r_total["tolerancia_m"] = tolerancia_m
+    filas.append(r_total)
+    log(f"  TOTAL: {r_total['n_puntos_d8']} píxeles de cauce D8, "
+        f"{r_total['pct_dentro_tolerancia']}% dentro de {tolerancia_m}m de la red oficial "
+        f"(dist. promedio: {r_total['distancia_promedio_m']}m)")
+    return filas
+
+
 # ==============================================================================
 # --- ORQUESTADOR CON DATOS REALES ---
 # ==============================================================================
@@ -142,8 +190,10 @@ def validar_sitio_real(geojson_path, shapefile_inegi_path, id_proyecto, zonas_m=
     """Corre geomatica.py para obtener los cauces D8 (reusa el SRTM ya
     descargado si existe), carga la red oficial de INEGI (filtrada por
     bbox del sitio -- no carga el archivo completo si es un GeoPackage
-    nacional grande), y calcula el índice de validación por zona.
-    Devuelve (df_validacion, csv_path).
+    nacional grande), y calcula el índice de validación por zona (+ una
+    fila TOTAL final, calculada sobre la unión real de los puntos D8 de
+    todas las zonas -- ver _validar_por_zona_con_total). Devuelve
+    (df_validacion, csv_path).
 
     `layer`: nombre de la capa dentro del GeoPackage/shapefile, si aplica
     (ej. 'corriente_ag_l' del CNIT50k de INEGI, que es la red LINEAL de
@@ -193,17 +243,8 @@ def validar_sitio_real(geojson_path, shapefile_inegi_path, id_proyecto, zonas_m=
     gdf_d8 = vectorizar_cauces_d8(hidrologia["stream_mask"], hidrologia["zona_de_pixel"],
                                    hidrologia["transform"])
 
-    filas = []
-    for zona in ["nucleo"] + [f"buffer_{b}m" for b in sorted(zonas_m) if b > 0]:
-        sub = gdf_d8[gdf_d8["zona"] == zona]
-        puntos_d8 = np.column_stack([sub["x"].values, sub["y"].values]) if len(sub) > 0 else np.empty((0, 2))
-        resultado = validar_zona(puntos_d8, puntos_ref, tolerancia_m)
-        resultado["zona"] = zona
-        resultado["tolerancia_m"] = tolerancia_m
-        filas.append(resultado)
-        log(f"  Zona {zona}: {resultado['n_puntos_d8']} píxeles de cauce D8, "
-            f"{resultado['pct_dentro_tolerancia']}% dentro de {tolerancia_m}m de la red oficial "
-            f"(dist. promedio: {resultado['distancia_promedio_m']}m)")
+    xy_todos = np.column_stack([gdf_d8["x"].values, gdf_d8["y"].values]) if len(gdf_d8) > 0 else np.empty((0, 2))
+    filas = _validar_por_zona_con_total(gdf_d8["zona"].values, xy_todos, puntos_ref, zonas_m, tolerancia_m)
 
     df = pd.DataFrame(filas)[["zona", "n_puntos_d8", "tolerancia_m", "pct_dentro_tolerancia",
                                "distancia_promedio_m", "distancia_mediana_m"]]
@@ -273,20 +314,10 @@ def generar_mapa_3d_validacion(geojson_path, shapefile_inegi_path, id_proyecto, 
     #     --mapa-3d también deje el CSV -- antes solo generaba el HTML y
     #     el CSV se perdía si no se corría el otro comando por separado. ---
     zona_de_pixel = hidrologia["zona_de_pixel"]
-    filas_csv = []
-    for zona in ["nucleo"] + [f"buffer_{b}m" for b in sorted(zonas_m) if b > 0]:
-        sel = zona_de_pixel[river_y, river_x] == zona
-        sub_puntos = puntos_d8_utm[sel] if len(puntos_d8_utm) else np.empty((0, 2))
-        r_zona = validar_zona(sub_puntos, puntos_ref, tolerancia_m)
-        filas_csv.append({
-            "zona": zona, "n_puntos_d8": r_zona["n_puntos_d8"], "tolerancia_m": tolerancia_m,
-            "pct_dentro_tolerancia": r_zona["pct_dentro_tolerancia"],
-            "distancia_promedio_m": r_zona["distancia_promedio_m"],
-            "distancia_mediana_m": r_zona["distancia_mediana_m"],
-        })
-        log(f"  Zona {zona}: {r_zona['n_puntos_d8']} píxeles, {r_zona['pct_dentro_tolerancia']}% dentro de "
-            f"{tolerancia_m}m (dist. promedio: {r_zona['distancia_promedio_m']}m)")
-    df_zonas = pd.DataFrame(filas_csv)
+    zona_por_punto_d8 = zona_de_pixel[river_y, river_x] if len(river_y) else np.array([], dtype=object)
+    filas_csv = _validar_por_zona_con_total(zona_por_punto_d8, puntos_d8_utm, puntos_ref, zonas_m, tolerancia_m)
+    df_zonas = pd.DataFrame(filas_csv)[["zona", "n_puntos_d8", "tolerancia_m", "pct_dentro_tolerancia",
+                                         "distancia_promedio_m", "distancia_mediana_m"]]
     pct_str = int(percentil_cauce or cfg.PERCENTIL_CAUCE_HIDROLOGIA)
     csv_path = os.path.join(carpeta_salida, f"validacion_hidrologica_{id_proyecto.lower()}_p{pct_str}.csv")
     df_zonas.to_csv(csv_path, index=False)
@@ -303,7 +334,9 @@ def generar_mapa_3d_validacion(geojson_path, shapefile_inegi_path, id_proyecto, 
     customdata_superficie = np.dstack([Z_raw, lat_grid, lon_grid])
     fig.add_trace(go.Surface(
         z=Z_smooth, x=X, y=Y, colorscale="Earth", connectgaps=False, opacity=0.85, name="Terreno 3D",
-        customdata=customdata_superficie,
+        customdata=customdata_superficie, showscale=False,  # altitud ya se lee en Z y en el hover --
+        # mismo criterio que geomatica.generar_mapa_3d(): sin esto, el colorbar de altitud
+        # choca con la leyenda (dentro/fuera de tolerancia, red oficial INEGI).
         hovertemplate="Altitud: %{customdata[0]:.0f} msnm<br>Lat: %{customdata[1]:.5f}<br>Lon: %{customdata[2]:.5f}<extra></extra>",
     ))
 
@@ -352,12 +385,56 @@ def generar_mapa_3d_validacion(geojson_path, shapefile_inegi_path, id_proyecto, 
             hovertemplate="Red oficial INEGI<br>Lat: %{customdata[0]:.5f}<br>Lon: %{customdata[1]:.5f}<extra></extra>",
         ))
 
+    # Aviso honesto en el propio mapa, no solo en el docstring del módulo (mismo criterio ya
+    # aplicado en deforestacion.py y validacion_incendios.py para el aviso de 723 vs 771 ha):
+    # un % bajo aquí no necesariamente significa que el modelo D8 esté mal -- INEGI 1:50,000 no
+    # digitaliza cauces efímeros/pequeños que el D8 (SRTM 30m, más fino) sí puede detectar. Antes
+    # esta explicación solo vivía en el docstring del módulo -- nadie que abriera el mapa la veía.
+    # `resultado` ya es el TOTAL sobre TODOS los puntos D8 juntos (calculado arriba para colorear
+    # verde/rojo) -- se reusa aquí en vez de recalcularlo, para no correr KD-tree dos veces.
+    def _fmt(v, decimales=0):
+        return f"{v:.{decimales}f}" if v is not None else "N/D"
+
+    pct_total = resultado["pct_dentro_tolerancia"]
+    n_total = resultado["n_puntos_d8"]
+    promedio_total = resultado["distancia_promedio_m"]
+    mediana_total = resultado["distancia_mediana_m"]
+
+    # Líneas CORTAS a propósito (mismo problema ya resuelto en deforestacion.py: un título de
+    # Plotly no hace word-wrap solo, una línea larga se corta en el borde del gráfico) Y dentro
+    # del MISMO bloque <sub>...</sub> que el resto del subtítulo (fuente más chica -- si se deja
+    # una línea fuera de <sub>, Plotly la dibuja en el tamaño grande del título principal, que
+    # ocupa más ancho Y más alto por línea de lo que asume calcular_margen_top_titulo()).
+    subtitulo_extra = (
+        f"<br>TOTAL: {_fmt(pct_total, 1)}% de {n_total} píxeles D8 dentro de {tolerancia_m:.0f}m "
+        f"(mediana {_fmt(mediana_total)}m, promedio {_fmt(promedio_total)}m)."
+        f"<br>% bajo no implica error del D8: INEGI (1:50,000) no digitaliza cauces pequeños "
+        f"que el D8 (SRTM 30m) sí detecta."
+    )
+    if promedio_total is not None and mediana_total is not None and mediana_total > 0 \
+            and promedio_total > 2 * mediana_total:
+        # Mediana << promedio: la mayoría de los puntos SÍ está cerca (la mediana lo refleja),
+        # pero un grupo minoritario está muy lejos de cualquier cauce oficial y jala el promedio
+        # hacia arriba -- vale la pena decirlo porque de otro modo el promedio solo se lee como
+        # "el modelo está uniformemente mal", cuando el patrón real es distinto (posible zona sin
+        # digitalizar en INEGI, no un error parejo del D8 en todo el sitio).
+        subtitulo_extra += (
+            f"<br>Mediana ({_fmt(mediana_total)}m) << promedio ({_fmt(promedio_total)}m): la "
+            "mayoría SÍ está cerca, una minoría está muy lejos (posible zona sin digitalizar)."
+        )
+
+    titulo = (f"Validación hidrológica D8 vs INEGI - {id_proyecto}<br>"
+              f"<sub>Verde=dentro de {tolerancia_m:.0f}m de la red oficial | Rojo=fuera | "
+              f"Azul=red oficial INEGI (capa {layer})" + subtitulo_extra + "</sub>")
+    margin_t = geomatica.calcular_margen_top_titulo(titulo)
+
     fig.update_layout(
-        title=(f"Validación hidrológica D8 vs INEGI - {id_proyecto}<br>"
-               f"<sub>Verde=dentro de {tolerancia_m:.0f}m de la red oficial | Rojo=fuera | "
-               f"Azul=red oficial INEGI (capa {layer})</sub>"),
+        title=titulo,
         scene=dict(xaxis_title="Este [km]", yaxis_title="Norte [km]", zaxis_title="Altitud [msnm]",
-                   aspectmode="manual", aspectratio=dict(x=1, y=1, z=0.7)),
+                   aspectmode="manual", aspectratio=dict(x=1, y=1, z=0.7),
+                   camera=dict(eye=dict(x=1.35, y=-1.35, z=0.8), center=dict(x=0, y=0, z=-0.05))),
+        legend=dict(x=0.01, y=0.99, bgcolor="rgba(255,255,255,0.75)"),
+        margin=dict(l=10, r=10, t=margin_t, b=10),
         autosize=True,
     )
     html_path = os.path.join(carpeta_salida, f"{id_proyecto.lower()}_3d_validacion_p{int(percentil_cauce or cfg.PERCENTIL_CAUCE_HIDROLOGIA)}.html")
@@ -421,8 +498,9 @@ def main():
     ap.add_argument("--tolerancia-m", type=float, default=None,
                      help=f"Tolerancia de distancia en metros (default: config.TOLERANCIA_VALIDACION_HIDRO_M={TOLERANCIA_VALIDACION_HIDRO_M})")
     ap.add_argument("--percentil-cauce", type=float, default=None,
-                     help="Percentil de acumulación de flujo D8 para declarar cauce (default: config.PERCENTIL_CAUCE_HIDROLOGIA=92). "
-                          "Subirlo (ej. 96-98) exige más acumulación de flujo para marcar un cauce -- útil para probar si el ruido "
+                     help=f"Percentil de acumulación de flujo D8 para declarar cauce (default: "
+                          f"config.PERCENTIL_CAUCE_HIDROLOGIA={PERCENTIL_CAUCE_HIDROLOGIA}). "
+                          "Subirlo exige más acumulación de flujo para marcar un cauce -- útil para probar si el ruido "
                           "en zonas planas se debe a un umbral demasiado permisivo.")
     ap.add_argument("--carpeta-salida", type=str, default=None)
     ap.add_argument("--mapa-3d", action="store_true",

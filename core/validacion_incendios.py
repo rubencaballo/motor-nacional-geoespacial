@@ -45,6 +45,21 @@ QUÉ ES dNBR -- documentado, no asumido:
     igual que ya hace este proyecto con B11 (20m) en el NDMI de
     deforestacion.py. Es una simplificación aceptada, no oculta.
 
+DOS SENSORES, NO UNO -- por qué:
+    Sentinel-2 (usado arriba) no tiene cobertura confiable antes de
+    config.DEFORESTACION_ANIO_MIN_SENTINEL2 (2016). Para años anteriores
+    (hasta config.VALIDACION_INCENDIO_ANIO_MIN_LANDSAT, 2000 -- el mismo
+    piso que tiene Hansen lossyear, no tiene caso pedir cobertura de años
+    que Hansen ni siquiera reporta), este módulo usa Landsat 5 TM + 7 ETM+ +
+    8 OLI combinados (ver _coleccion_landsat_nbr()) en vez de omitir esos
+    años sin más. La elección de qué sensor usar es automática, por año, y
+    se reporta explícito en la columna 'sensor_dnbr' del CSV de salida --
+    nunca se mezcla la certeza de un año Sentinel-2 con uno Landsat sin
+    decirlo. Nota honesta: los umbrales de severidad dNBR (ver abajo) están
+    calibrados originalmente para Landsat -- en las funciones Landsat de
+    este módulo esa calibración por fin aplica de forma directa, no como
+    "guía aproximada" (que es como se aplica a Sentinel-2 arriba).
+
 VENTANA PRE/POST -- por qué días, no años:
     A diferencia de deforestacion.py (que compone Sentinel-2 por AÑO
     completo para una tendencia), aquí el compuesto "pre" y "post" son
@@ -93,7 +108,8 @@ from config import (
     VALIDACION_INCENDIO_VENTANA_DIAS_PRE_DEFAULT, VALIDACION_INCENDIO_VENTANA_DIAS_POST_DEFAULT,
     VALIDACION_INCENDIO_NUBOSIDAD_MAX_PCT, VALIDACION_INCENDIO_UMBRAL_DNBR_QUEMADO,
     VALIDACION_INCENDIO_HA_MIN_PARA_EVALUAR, VALIDACION_INCENDIO_SCREENING_MESES_PRE,
-    VALIDACION_INCENDIO_SCREENING_MESES_POST, UMBRALES_SEVERIDAD_DNBR, log,
+    VALIDACION_INCENDIO_SCREENING_MESES_POST, VALIDACION_INCENDIO_ANIO_MIN_LANDSAT,
+    UMBRALES_SEVERIDAD_DNBR, log,
 )
 
 
@@ -226,7 +242,8 @@ def _descargar_dnbr_alineado(ee, geom_wgs84_visual, fecha_evento, transform_ref,
         log("Sin suficientes imágenes Sentinel-2 limpias en la ventana pre y/o post -- no se puede calcular "
             "dNBR. No se inventa un resultado; prueba con --ventana-dias-pre/--ventana-dias-post más grandes "
             "o --nubosidad-max más alto.", nivel="WARN")
-        return {"dnbr_alineado": None, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post, **rangos}
+        return {"dnbr_alineado": None, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post,
+                "sensor": "sentinel2", **rangos}
 
     dnbr = nbr_pre.subtract(nbr_post).rename("dnbr").clip(aoi)
     url = dnbr.getDownloadURL({"region": aoi, "scale": 30, "crs": "EPSG:4326", "format": "GEO_TIFF"})
@@ -252,7 +269,8 @@ def _descargar_dnbr_alineado(ee, geom_wgs84_visual, fecha_evento, transform_ref,
         )
     os.remove(tif_crudo)
 
-    return {"dnbr_alineado": dnbr_alineado, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post, **rangos}
+    return {"dnbr_alineado": dnbr_alineado, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post,
+            "sensor": "sentinel2", **rangos}
 
 
 def _descargar_dnbr_screening_alineado(ee, geom_wgs84_visual, anio, transform_ref, shape_ref, utm_crs,
@@ -305,7 +323,8 @@ def _descargar_dnbr_screening_alineado(ee, geom_wgs84_visual, anio, transform_re
     if nbr_pre is None or nbr_post is None:
         log(f"  Año {anio}: sin suficientes imágenes S2 limpias para el screening -- se omite este año, "
             f"no se inventa.", nivel="WARN")
-        return {"dnbr_alineado": None, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post, **rangos}
+        return {"dnbr_alineado": None, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post,
+                "sensor": "sentinel2", **rangos}
 
     dnbr = nbr_pre.subtract(nbr_post).rename("dnbr").clip(aoi)
     url = dnbr.getDownloadURL({"region": aoi, "scale": 30, "crs": "EPSG:4326", "format": "GEO_TIFF"})
@@ -327,7 +346,191 @@ def _descargar_dnbr_screening_alineado(ee, geom_wgs84_visual, anio, transform_re
         )
     os.remove(tif_crudo)
 
-    return {"dnbr_alineado": dnbr_alineado, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post, **rangos}
+    return {"dnbr_alineado": dnbr_alineado, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post,
+            "sensor": "sentinel2", **rangos}
+
+
+# ==============================================================================
+# --- LANDSAT (2000 - DEFORESTACION_ANIO_MIN_SENTINEL2): mismo dNBR, otro sensor ---
+# ==============================================================================
+def _coleccion_landsat_nbr(ee, aoi, ini, fin, nubosidad_max_pct):
+    """Arma UNA ImageCollection combinando Landsat 5 TM + 7 ETM+ + 8 OLI
+    (Collection 2, Nivel 2, Reflectancia de Superficie), con NIR y SWIR2 ya
+    escalados a reflectancia real y renombrados a bandas comunes ('nir',
+    'swir2') -- así se pueden mezclar sensores con distinta numeración de
+    banda (L5/L7: NIR=SR_B4, SWIR2=SR_B7; L8: NIR=SR_B5, SWIR2=SR_B7) en una
+    sola colección.
+
+    Por qué 3 sensores y no uno: en el rango 2000-2016 ningún satélite solo
+    cubre todo el período -- Landsat 5 se apagó en nov-2011, Landsat 8 no
+    vuela hasta feb-2013. Landsat 7 sí cubre todo el rango, pero tiene
+    franjas sin dato desde 2003 por la falla del SLC (Scan Line Corrector)
+    -- documentado, no oculto: en un compuesto de mediana con varias
+    imágenes esas franjas se rellenan razonablemente porque caen en
+    posiciones distintas en cada pasada, pero no es un dato perfecto, sobre
+    todo en años/ventanas con pocas imágenes limpias.
+
+    ESCALA -- por qué esto es DIFERENTE de Sentinel-2 aquí: Sentinel-2 SR
+    Harmonized ya viene en reflectancia*10000 SIN offset aditivo, así que
+    normalizedDifference() funciona directo sobre el DN crudo (el factor de
+    escala se cancela en el cociente). Landsat Collection 2 Nivel 2 SÍ trae
+    un offset aditivo real (DN * 0.0000275 - 0.2) que NO se cancela en el
+    cociente de NBR -- hay que aplicarlo ANTES de restar las bandas, o el
+    dNBR resultante queda mal calculado. Por eso aquí se escala explícito
+    banda por banda antes de exponer 'nir'/'swir2', a diferencia de las
+    funciones Sentinel-2 de arriba que no necesitan este paso."""
+    def _preparar(coleccion_id, banda_nir, banda_swir2):
+        col = (ee.ImageCollection(coleccion_id)
+               .filterBounds(aoi).filterDate(ini, fin)
+               .filter(ee.Filter.lt("CLOUD_COVER", nubosidad_max_pct))
+               .select([banda_nir, banda_swir2], ["nir", "swir2"]))
+        return col.map(lambda img: (
+            img.select(["nir", "swir2"]).multiply(0.0000275).add(-0.2)
+               .copyProperties(img, img.propertyNames())
+        ))
+
+    l5 = _preparar("LANDSAT/LT05/C02/T1_L2", "SR_B4", "SR_B7")
+    l7 = _preparar("LANDSAT/LE07/C02/T1_L2", "SR_B4", "SR_B7")
+    l8 = _preparar("LANDSAT/LC08/C02/T1_L2", "SR_B5", "SR_B7")
+    return l5.merge(l7).merge(l8)
+
+
+def _descargar_dnbr_landsat_alineado(ee, geom_wgs84_visual, fecha_evento, transform_ref, shape_ref, utm_crs,
+                                      ventana_dias_pre=None, ventana_dias_post=None, nubosidad_max_pct=None,
+                                      carpeta_tmp=None):
+    """Version Landsat (L5/L7/L8 combinados) de _descargar_dnbr_alineado() --
+    mismo patrón exacto (ventana pre/post alrededor de una fecha de evento,
+    dNBR = NBR_pre - NBR_post, realineado a la malla de geomatica.py), para
+    un evento con fecha real conocida ANTES de la cobertura Sentinel-2
+    (config.DEFORESTACION_ANIO_MIN_SENTINEL2). scale=30 aquí es la
+    resolución NATIVA de Landsat (a diferencia de la versión Sentinel-2, que
+    ya pide 30m aunque su resolución nativa sea 10m/20m) -- ninguna pérdida
+    de detalle extra por el remuestreo."""
+    import tempfile
+
+    ventana_dias_pre = ventana_dias_pre if ventana_dias_pre is not None else VALIDACION_INCENDIO_VENTANA_DIAS_PRE_DEFAULT
+    ventana_dias_post = ventana_dias_post if ventana_dias_post is not None else VALIDACION_INCENDIO_VENTANA_DIAS_POST_DEFAULT
+    nubosidad_max_pct = nubosidad_max_pct if nubosidad_max_pct is not None else VALIDACION_INCENDIO_NUBOSIDAD_MAX_PCT
+    carpeta_tmp = carpeta_tmp or tempfile.gettempdir()
+    os.makedirs(carpeta_tmp, exist_ok=True)
+
+    fecha_dt = datetime.strptime(fecha_evento, "%Y-%m-%d")
+    pre_ini = (fecha_dt - timedelta(days=ventana_dias_pre)).strftime("%Y-%m-%d")
+    pre_fin = fecha_evento
+    post_ini = fecha_evento
+    post_fin = (fecha_dt + timedelta(days=ventana_dias_post)).strftime("%Y-%m-%d")
+
+    aoi = ee.Geometry(geom_wgs84_visual)
+
+    def _compuesto_nbr(ini, fin, etiqueta):
+        col = _coleccion_landsat_nbr(ee, aoi, ini, fin, nubosidad_max_pct)
+        n = col.size().getInfo()
+        log(f"  Compuesto Landsat {etiqueta} ({ini} a {fin}): {n} imágenes (L5/L7/L8 combinadas) "
+            f"con <{nubosidad_max_pct}% nubes")
+        if n == 0:
+            return None, 0
+        nbr = col.median().normalizedDifference(["nir", "swir2"]).rename(f"nbr_{etiqueta}")
+        return nbr, n
+
+    nbr_pre, n_pre = _compuesto_nbr(pre_ini, pre_fin, "pre")
+    nbr_post, n_post = _compuesto_nbr(post_ini, post_fin, "post")
+    rangos = {"pre_rango": (pre_ini, pre_fin), "post_rango": (post_ini, post_fin)}
+
+    if nbr_pre is None or nbr_post is None:
+        log("Sin suficientes imágenes Landsat limpias en la ventana pre y/o post -- no se puede calcular "
+            "dNBR. No se inventa un resultado; prueba con --ventana-dias-pre/--ventana-dias-post más grandes "
+            "o --nubosidad-max más alto.", nivel="WARN")
+        return {"dnbr_alineado": None, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post,
+                "sensor": "landsat_l5_l7_l8", **rangos}
+
+    dnbr = nbr_pre.subtract(nbr_post).rename("dnbr").clip(aoi)
+    url = dnbr.getDownloadURL({"region": aoi, "scale": 30, "crs": "EPSG:4326", "format": "GEO_TIFF"})
+    r = requests.get(url, timeout=120)
+    r.raise_for_status()
+    tif_crudo = os.path.join(carpeta_tmp, "temp_dnbr_landsat_crudo.tif")
+    with open(tif_crudo, "wb") as f:
+        f.write(r.content)
+
+    rows, cols = shape_ref
+    dnbr_alineado = np.full((rows, cols), np.nan, dtype=np.float32)  # NaN, no cero -- mismo criterio
+    # que la versión Sentinel-2: 0.0 dNBR es un valor real (sin cambio), no "sin dato".
+    with rasterio.open(tif_crudo) as src:
+        reproject(
+            source=rasterio.band(src, 1), destination=dnbr_alineado,
+            src_transform=src.transform, src_crs=src.crs,
+            dst_transform=transform_ref, dst_crs=utm_crs,
+            resampling=Resampling.bilinear, src_nodata=src.nodata,
+        )
+    os.remove(tif_crudo)
+
+    return {"dnbr_alineado": dnbr_alineado, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post,
+            "sensor": "landsat_l5_l7_l8", **rangos}
+
+
+def _descargar_dnbr_screening_landsat_alineado(ee, geom_wgs84_visual, anio, transform_ref, shape_ref, utm_crs,
+                                                meses_pre=None, meses_post=None, nubosidad_max_pct=None,
+                                                carpeta_tmp=None):
+    """Version Landsat de _descargar_dnbr_screening_alineado() -- mismo
+    patrón (ventanas fijas ene-abr vs sep-dic dentro del mismo año, ver
+    config.VALIDACION_INCENDIO_SCREENING_MESES_PRE/POST), para años sin
+    fecha de evento confirmada dentro del rango Landsat (config.
+    VALIDACION_INCENDIO_ANIO_MIN_LANDSAT hasta DEFORESTACION_ANIO_MIN_
+    SENTINEL2). Mismo aviso que la versión Sentinel-2: esto es SCREENING,
+    no validación de evento -- se etiqueta 'screening_anual' igual, nunca
+    se mezcla con la certeza de un 'evento_confirmado'."""
+    meses_pre = meses_pre or VALIDACION_INCENDIO_SCREENING_MESES_PRE
+    meses_post = meses_post or VALIDACION_INCENDIO_SCREENING_MESES_POST
+    pre_ini = f"{anio}-{meses_pre[0]:02d}-01"
+    pre_fin = f"{anio}-{meses_pre[1]:02d}-28"
+    post_ini = f"{anio}-{meses_post[0]:02d}-01"
+    post_fin = f"{anio}-{meses_post[1]:02d}-31"
+
+    nubosidad_max_pct = nubosidad_max_pct if nubosidad_max_pct is not None else VALIDACION_INCENDIO_NUBOSIDAD_MAX_PCT
+    import tempfile
+    carpeta_tmp = carpeta_tmp or tempfile.gettempdir()
+    os.makedirs(carpeta_tmp, exist_ok=True)
+
+    aoi = ee.Geometry(geom_wgs84_visual)
+
+    def _compuesto_nbr(ini, fin, etiqueta):
+        col = _coleccion_landsat_nbr(ee, aoi, ini, fin, nubosidad_max_pct)
+        n = col.size().getInfo()
+        log(f"    Compuesto Landsat {etiqueta} {anio} ({ini} a {fin}): {n} imágenes (L5/L7/L8) "
+            f"con <{nubosidad_max_pct}% nubes")
+        if n == 0:
+            return None, 0
+        return col.median().normalizedDifference(["nir", "swir2"]).rename(f"nbr_{etiqueta}"), n
+
+    nbr_pre, n_pre = _compuesto_nbr(pre_ini, pre_fin, "pre")
+    nbr_post, n_post = _compuesto_nbr(post_ini, post_fin, "post")
+    rangos = {"pre_rango": (pre_ini, pre_fin), "post_rango": (post_ini, post_fin)}
+    if nbr_pre is None or nbr_post is None:
+        log(f"  Año {anio}: sin suficientes imágenes Landsat limpias para el screening -- se omite "
+            f"este año, no se inventa.", nivel="WARN")
+        return {"dnbr_alineado": None, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post,
+                "sensor": "landsat_l5_l7_l8", **rangos}
+
+    dnbr = nbr_pre.subtract(nbr_post).rename("dnbr").clip(aoi)
+    url = dnbr.getDownloadURL({"region": aoi, "scale": 30, "crs": "EPSG:4326", "format": "GEO_TIFF"})
+    r = requests.get(url, timeout=120)
+    r.raise_for_status()
+    tif_crudo = os.path.join(carpeta_tmp, f"temp_dnbr_landsat_screening_{anio}.tif")
+    with open(tif_crudo, "wb") as f:
+        f.write(r.content)
+
+    rows, cols = shape_ref
+    dnbr_alineado = np.full((rows, cols), np.nan, dtype=np.float32)
+    with rasterio.open(tif_crudo) as src:
+        reproject(
+            source=rasterio.band(src, 1), destination=dnbr_alineado,
+            src_transform=src.transform, src_crs=src.crs,
+            dst_transform=transform_ref, dst_crs=utm_crs,
+            resampling=Resampling.bilinear, src_nodata=src.nodata,
+        )
+    os.remove(tif_crudo)
+
+    return {"dnbr_alineado": dnbr_alineado, "n_imagenes_pre": n_pre, "n_imagenes_post": n_post,
+            "sensor": "landsat_l5_l7_l8", **rangos}
 
 
 # ==============================================================================
@@ -392,6 +595,75 @@ def construir_capa_validacion_incendio_3d(lossyear_alineado, dnbr_alineado, hidr
             customdata=customdata, hovertemplate=hovertemplate, name=etiqueta,
         ))
         log(f"Capa '{etiqueta}': {len(fx)} píxeles.")
+
+    return capas
+
+
+def construir_capa_validacion_incendio_historial_3d(anios_confirmados_grid, anios_no_confirmados_grid,
+                                                      hidrologia, utm_crs=None):
+    """Igual que construir_capa_validacion_incendio_3d(), pero para VARIOS
+    años a la vez (usada por procesar_historial_incendios_real() con
+    --mapa-3d) -- mismo criterio visual (verde=confirmado por dNBR,
+    gris=evaluado sin confirmar), pero agrupando TODOS los años evaluados
+    en una sola capa de cada color, con el año real de cada punto en el
+    hover (no se puede leer del color, a diferencia de deforestacion.py que
+    sí colorea por año -- aquí se mantiene el mismo verde/gris ya
+    establecido en el mapa de un solo evento, para no romper esa
+    convención visual entre los dos mapas).
+
+    `anios_confirmados_grid` / `anios_no_confirmados_grid`: arrays float,
+    mismo shape que el terreno, con el AÑO REAL (ej. 2013) en cada píxel
+    que cayó en esa categoría ese año, y NaN en todo lo demás -- incluidos
+    a propósito los píxeles de años que ni siquiera se evaluaron (sin
+    imágenes limpias, o pérdida dispersa bajo el mínimo): esos NO aparecen
+    en ninguna de las dos capas, para no confundir 'no se pudo evaluar' con
+    'se evaluó y no se confirmó'."""
+    import plotly.graph_objects as go
+    from core.geomatica import calcular_grid_latlon
+
+    Z_raw = hidrologia["Z_raw"]
+    Z_smooth = hidrologia.get("Z_smooth", Z_raw)
+    pw_v, ph_v = hidrologia["pw_v"], hidrologia["ph_v"]
+    transform = hidrologia["transform"]
+    rows, cols = Z_raw.shape
+
+    lat_grid = lon_grid = None
+    if utm_crs:
+        lat_grid, lon_grid = calcular_grid_latlon(transform, utm_crs, rows, cols)
+
+    capas = []
+    for etiqueta, color, grid_anios in [
+        ("Pérdida confirmada por dNBR, todos los años (incendio probable)", "lime", anios_confirmados_grid),
+        ("Pérdida evaluada SIN confirmar por dNBR, todos los años", "gray", anios_no_confirmados_grid),
+    ]:
+        mascara = ~np.isnan(grid_anios)
+        fy, fx = np.where(mascara)
+        if len(fx) > 0:
+            validos = ~np.isnan(Z_raw[fy, fx]) & ~np.isnan(Z_smooth[fy, fx])
+            fy, fx = fy[validos], fx[validos]
+        if len(fx) == 0:
+            continue
+
+        x_km = fx * pw_v / 1000.0
+        y_km = (rows - 1 - fy) * ph_v / 1000.0
+        z_km = Z_smooth[fy, fx] + max(pw_v, ph_v) * 0.6
+
+        anios_pts = grid_anios[fy, fx]
+        customdata_cols = [Z_raw[fy, fx], anios_pts]
+        hovertemplate = (f"{etiqueta}<br>Año: %{{customdata[1]:.0f}}<br>"
+                          f"Altitud: %{{customdata[0]:.0f}} msnm")
+        if lat_grid is not None:
+            customdata_cols += [lat_grid[fy, fx], lon_grid[fy, fx]]
+            hovertemplate += "<br>Lat: %{customdata[2]:.5f}<br>Lon: %{customdata[3]:.5f}"
+        hovertemplate += "<extra></extra>"
+        customdata = np.column_stack(customdata_cols)
+
+        capas.append(go.Scatter3d(
+            x=x_km, y=y_km, z=z_km, mode="markers",
+            marker=dict(size=2.6, color=color, opacity=0.8),
+            customdata=customdata, hovertemplate=hovertemplate, name=etiqueta,
+        ))
+        log(f"Capa histórica '{etiqueta}': {len(fx)} píxeles (todos los años evaluados combinados).")
 
     return capas
 
@@ -518,8 +790,10 @@ def procesar_validacion_incendio_real(geojson_path, id_proyecto, fecha_evento, a
         html_path = os.path.join(
             carpeta_salida, f"{id_proyecto.lower()}_3d_validacion_incendio_{anio_hansen}.html",
         )
+        titulo_base = f"{id_proyecto} -- Validación de incendio ({fecha_evento}) vs pérdida Hansen {anio_hansen}"
         geomatica.generar_mapa_3d(
             hidrologia, id_proyecto, html_path, subtitulo=subtitulo, utm_crs=utm_crs, capas_extra=capas_extra,
+            titulo_base=titulo_base,
         )
         log(f"Mapa 3D de validación de incendio: {html_path}")
 
@@ -551,12 +825,19 @@ def procesar_historial_incendios_real(geojson_path, id_proyecto, zonas_m=None, a
                                        anio_fin=None, eventos_confirmados=None, ha_min_para_evaluar=None,
                                        nubosidad_max_pct=None, umbral_dnbr_quemado=None, percentil_cauce=None,
                                        historial_csv_existente=None, carpeta_salida=None, carpeta_srtm=None,
-                                       proyecto_gee=None):
+                                       proyecto_gee=None, mapa_3d=False):
     """Corre la validación de causa (incendio confirmado / screening / sin
     evaluar) para VARIOS años a la vez, por zona, y arma UN solo CSV
     consolidado -- opcionalmente fusionado con el historial de
     core/deforestacion.py (perdida_ha, ndvi, ndmi, ndwi) si le pasas
     `historial_csv_existente`.
+
+    `mapa_3d`: si es True, además arma UN mapa 3D con TODOS los años
+    evaluados combinados (verde=confirmado por dNBR, gris=evaluado sin
+    confirmar, año real en el hover -- ver
+    construir_capa_validacion_incendio_historial_3d()). No cuesta ninguna
+    llamada nueva a GEE: reusa el dNBR que este mismo historial ya
+    descarga por año.
 
     DISEÑO PENSADO PARA NO GASTAR CUPO GEE DE MÁS (ver docstring del módulo):
     - El lossyear de Hansen se descarga UNA sola vez para todo el rango de
@@ -643,34 +924,62 @@ def procesar_historial_incendios_real(geojson_path, id_proyecto, zonas_m=None, a
     pixel_area_ha = hidrologia["pw_v"] * hidrologia["ph_v"] / 10000.0
     etiquetas_zona = ["nucleo"] + [f"buffer_{b}m" for b in sorted(zonas_m) if b > 0]
 
-    # --- Plan (gratis, sin GEE): decidir qué años se evalúan de verdad ---
+    # Grids para el mapa 3D histórico (solo se llenan si mapa_3d=True, pero se declaran siempre
+    # para no complicar el loop de abajo con un if extra por iteración) -- año real por píxel,
+    # NaN donde no aplica. Un píxel de un año NUNCA evaluado (sin imágenes limpias, o pérdida
+    # dispersa) se queda NaN en AMBOS grids -- no se inventa que "se evaluó y no se confirmó".
+    anios_confirmados_grid = np.full(lossyear_alineado.shape, np.nan, dtype=np.float32)
+    anios_no_confirmados_grid = np.full(lossyear_alineado.shape, np.nan, dtype=np.float32)
+
+    # --- Plan (gratis, sin GEE): decidir qué años se evalúan de verdad, y con qué sensor ---
     anio_min_sentinel = DEFORESTACION_ANIO_MIN_SENTINEL2 + 1  # +1: el primer año con Sentinel-2 ya
     # completo suele venir con muy pocas imágenes (ver caso real: 2016 tuvo 0-1 imagen) -- no confiable
     plan_evaluar, plan_omitir = [], []
     for anio in range(anio_inicio, anio_fin + 1):
         if anio < anio_min_sentinel:
-            plan_omitir.append((anio, f"sin cobertura Sentinel-2 confiable (< {anio_min_sentinel})"))
-            continue
+            # Antes de VALIDACION_INCENDIO_ANIO_MIN_LANDSAT (2000): ni Hansen tiene lossyear que
+            # validar, así que no hay nada que este módulo pueda evaluar -- se omite de verdad.
+            # Entre ese piso y anio_min_sentinel: Landsat 5/7/8 combinados (ver
+            # _coleccion_landsat_nbr()) SÍ pueden cubrir el año, así que ya no se omite solo por
+            # estar antes de la cobertura Sentinel-2.
+            if anio < VALIDACION_INCENDIO_ANIO_MIN_LANDSAT:
+                plan_omitir.append((anio, f"sin cobertura Landsat/Hansen (< {VALIDACION_INCENDIO_ANIO_MIN_LANDSAT})"))
+                continue
+            sensor = "landsat"
+        else:
+            sensor = "sentinel2"
         codigo = anio - 2000
         ha_zona_mayor = float((lossyear_alineado[zona_de_pixel != "fuera"] == codigo).sum()) * pixel_area_ha
         if ha_zona_mayor < ha_min_para_evaluar:
             plan_omitir.append((anio, f"pérdida dispersa ({ha_zona_mayor:.2f} ha < {ha_min_para_evaluar} ha)"))
             continue
         metodo = "evento_confirmado" if anio in eventos_confirmados else "screening_anual"
-        plan_evaluar.append((anio, metodo, ha_zona_mayor))
+        plan_evaluar.append((anio, metodo, ha_zona_mayor, sensor))
 
     log(f"=== PLAN (sin gastar cupo GEE todavía) ===")
     log(f"  Años a EVALUAR con dNBR ({len(plan_evaluar)}): " +
-        ", ".join(f"{a}[{m}, ~{h:.1f}ha]" for a, m, h in plan_evaluar))
+        ", ".join(f"{a}[{m}/{s}, ~{h:.1f}ha]" for a, m, h, s in plan_evaluar))
     log(f"  Años OMITIDOS ({len(plan_omitir)}): " + ", ".join(f"{a}({r})" for a, r in plan_omitir))
-    log(f"  Esto son {len(plan_evaluar)} descargas de dNBR (2 compuestos S2 + 1 descarga cada una) -- "
-        f"si te parece demasiado, cancela ahora (Ctrl+C) y ajusta --ha-min-evaluar o el rango de años.")
+    log(f"  Esto son {len(plan_evaluar)} descargas de dNBR (2 compuestos + 1 descarga cada una, "
+        f"Sentinel-2 o Landsat según el año) -- si te parece demasiado, cancela ahora (Ctrl+C) y "
+        f"ajusta --ha-min-evaluar o el rango de años.")
 
     # --- Ejecutar el plan (aquí sí se gasta cupo GEE, un año a la vez) ---
     filas = []
-    for anio, metodo, _ in plan_evaluar:
-        log(f"Año {anio} ({metodo})...")
-        if metodo == "evento_confirmado":
+    for anio, metodo, _, sensor in plan_evaluar:
+        log(f"Año {anio} ({metodo}, {sensor})...")
+        if sensor == "landsat":
+            if metodo == "evento_confirmado":
+                dnbr_resultado = _descargar_dnbr_landsat_alineado(
+                    ee, geom_visual_geojson, eventos_confirmados[anio], hidrologia["transform"],
+                    hidrologia["Z_raw"].shape, utm_crs, nubosidad_max_pct=nubosidad_max_pct, carpeta_tmp=carpeta_srtm,
+                )
+            else:
+                dnbr_resultado = _descargar_dnbr_screening_landsat_alineado(
+                    ee, geom_visual_geojson, anio, hidrologia["transform"], hidrologia["Z_raw"].shape, utm_crs,
+                    nubosidad_max_pct=nubosidad_max_pct, carpeta_tmp=carpeta_srtm,
+                )
+        elif metodo == "evento_confirmado":
             dnbr_resultado = _descargar_dnbr_alineado(
                 ee, geom_visual_geojson, eventos_confirmados[anio], hidrologia["transform"],
                 hidrologia["Z_raw"].shape, utm_crs, nubosidad_max_pct=nubosidad_max_pct, carpeta_tmp=carpeta_srtm,
@@ -690,13 +999,15 @@ def procesar_historial_incendios_real(geojson_path, id_proyecto, zonas_m=None, a
         }
 
         if dnbr_resultado["dnbr_alineado"] is None:
+            causa_sin_imagenes = f"sin_evaluar_sin_imagenes_{dnbr_resultado['sensor']}_limpias"
             for etiqueta in etiquetas_zona:
                 filas.append({
                     "zona": etiqueta, "anio": anio, "metodo_validacion": metodo,
-                    "causa_probable": "sin_evaluar_sin_imagenes_s2_limpias",
+                    "sensor_dnbr": dnbr_resultado["sensor"],
+                    "causa_probable": causa_sin_imagenes,
                     "pct_confirmado_por_dnbr": None, "ha_confirmadas_dnbr": None,
                     "perdida_ha_anillo_exclusivo": round(perdida_anillo_ha[etiqueta], 3),
-                    "causa_probable_anillo_exclusivo": "sin_evaluar_sin_imagenes_s2_limpias",
+                    "causa_probable_anillo_exclusivo": causa_sin_imagenes,
                     "pct_confirmado_por_dnbr_anillo_exclusivo": None, "ha_confirmadas_dnbr_anillo_exclusivo": None,
                     "n_imagenes_s2_pre": dnbr_resultado["n_imagenes_pre"],
                     "n_imagenes_s2_post": dnbr_resultado["n_imagenes_post"],
@@ -704,6 +1015,19 @@ def procesar_historial_incendios_real(geojson_path, id_proyecto, zonas_m=None, a
             continue
 
         dnbr_alineado = dnbr_resultado["dnbr_alineado"]
+
+        if mapa_3d:
+            # Mismo dNBR que ya se descargó arriba -- sin llamada nueva a GEE. Se evalúa sobre TODA
+            # la zona visual (no por anillo, a diferencia de las estadísticas de abajo) porque el
+            # mapa 3D histórico es una sola capa combinada, igual que construir_capa_
+            # deforestacion_3d() en core/deforestacion.py.
+            r_zona_visual = validar_perdida_contra_incendio(lossyear_alineado, dnbr_alineado, anio, umbral_dnbr_quemado)
+            mask_confirmado_zona = r_zona_visual["mascara_confirmados_dnbr"] & (zona_de_pixel != "fuera")
+            mask_hansen_zona = (lossyear_alineado == codigo_anio) & (zona_de_pixel != "fuera")
+            mask_no_confirmado_zona = mask_hansen_zona & ~mask_confirmado_zona
+            anios_confirmados_grid[mask_confirmado_zona] = anio
+            anios_no_confirmados_grid[mask_no_confirmado_zona] = anio
+
         for etiqueta in etiquetas_zona:
             # (A) ACUMULATIVO -- "todo lo que está a menos de X metros del núcleo", el mismo universo
             #     que perdida_ha en el historial de deforestacion.py. Buffer_1000m SIEMPRE incluye lo
@@ -722,6 +1046,7 @@ def procesar_historial_incendios_real(geojson_path, id_proyecto, zonas_m=None, a
 
             filas.append({
                 "zona": etiqueta, "anio": anio, "metodo_validacion": metodo,
+                "sensor_dnbr": dnbr_resultado["sensor"],
                 "causa_probable": causa_cum, "pct_confirmado_por_dnbr": r_cum["pct_confirmado_por_dnbr"],
                 "ha_confirmadas_dnbr": round(ha_cum, 3),
                 "perdida_ha_anillo_exclusivo": round(perdida_anillo_ha[etiqueta], 3),
@@ -745,6 +1070,7 @@ def procesar_historial_incendios_real(geojson_path, id_proyecto, zonas_m=None, a
             perdida_anillo = float(((zona_de_pixel == etiqueta) & (lossyear_alineado == codigo_anio)).sum()) * pixel_area_ha
             filas.append({
                 "zona": etiqueta, "anio": anio, "metodo_validacion": "no_evaluado", "causa_probable": _razon,
+                "sensor_dnbr": None,
                 "pct_confirmado_por_dnbr": None, "ha_confirmadas_dnbr": None,
                 "perdida_ha_anillo_exclusivo": round(perdida_anillo, 3),
                 "causa_probable_anillo_exclusivo": _razon,
@@ -768,6 +1094,53 @@ def procesar_historial_incendios_real(geojson_path, id_proyecto, zonas_m=None, a
     df_final.to_csv(csv_path, index=False)
     log(f"CSV consolidado guardado en: {csv_path}")
     generar_resumen_no_traslapado(df_final, id_proyecto, carpeta_salida)
+
+    if mapa_3d:
+        capas_extra = construir_capa_validacion_incendio_historial_3d(
+            anios_confirmados_grid, anios_no_confirmados_grid, hidrologia, utm_crs=utm_crs,
+        )
+        n_conf = int(np.sum(~np.isnan(anios_confirmados_grid)))
+        n_no_conf = int(np.sum(~np.isnan(anios_no_confirmados_grid)))
+        subtitulo_3d = (
+            f"Validación de incendio histórica {anio_inicio}-{anio_fin} -- {n_conf} píxeles confirmados "
+            f"por dNBR (~{n_conf * pixel_area_ha:.1f} ha) y {n_no_conf} evaluados sin confirmar "
+            f"(~{n_no_conf * pixel_area_ha:.1f} ha) -- verde=confirmado (año en el hover), gris=evaluado "
+            f"sin confirmar. Sentinel-2 desde {anio_min_sentinel}, Landsat 5/7/8 antes."
+        )
+        # Mismo aviso honesto que ya se agregó a core.deforestacion.generar_mapa_3d_deforestacion(): esta
+        # suma (n_conf+n_no_conf) sale de _descargar_lossyear_alineado(), la MISMA malla local remuestreada
+        # que usa el mapa de deforestación -- por diseño casi nunca va a coincidir con el total oficial de la
+        # plataforma (deforestacion_resumen_sin_traslape_*.csv, consulta vectorial directa en Earth Engine).
+        # Se cita el número oficial cuando el CSV ya existe, en vez de dejarle la duda a quien vea el mapa.
+        ruta_resumen_oficial = os.path.join(carpeta_salida, f"deforestacion_resumen_sin_traslape_{id_proyecto.lower()}.csv")
+        if os.path.exists(ruta_resumen_oficial):
+            try:
+                df_oficial = pd.read_csv(ruta_resumen_oficial)
+                fila_oficial = df_oficial[(df_oficial["anillo"] == "TOTAL (suma sin traslape)")
+                                           & df_oficial["anio"].astype(str).str.startswith("TOTAL ")]
+                if not fila_oficial.empty:
+                    ha_oficial = fila_oficial["perdida_ha"].iloc[0]
+                    periodo_oficial = fila_oficial["anio"].iloc[0]
+                    subtitulo_3d += (f"<br>Esta suma es del conteo de píxeles de este mapa (no el total oficial)."
+                                      f"<br>Total oficial de la plataforma ({periodo_oficial}): {ha_oficial:,.1f} ha "
+                                      "-- ver mapa de CO2e liberado.")
+            except Exception as e:
+                log(f"No se pudo leer {ruta_resumen_oficial} para citar el total oficial en el subtítulo: {e}",
+                    nivel="WARN")
+        else:
+            subtitulo_3d += ("<br>Esta suma es del conteo de píxeles de este mapa, no la medición oficial de la "
+                              "plataforma."
+                              "<br>La oficial sale de deforestacion_resumen_sin_traslape_*.csv (consulta directa "
+                              "en Earth Engine).")
+        titulo_base = f"{id_proyecto} -- Validación de incendio histórica ({anio_inicio}-{anio_fin})"
+        html_path_3d = os.path.join(carpeta_salida, f"{id_proyecto.lower()}_3d_validacion_incendio_historial.html")
+        geomatica.generar_mapa_3d(
+            hidrologia, id_proyecto, html_path_3d, subtitulo=subtitulo_3d, utm_crs=utm_crs,
+            capas_extra=capas_extra, titulo_base=titulo_base,
+        )
+        log(f"Mapa 3D histórico de validación de incendio ({len(plan_evaluar)} años evaluados, "
+            f"sin gastar cupo GEE extra): {html_path_3d}", nivel="OK")
+
     return df_final, csv_path
 
 
@@ -923,8 +1296,10 @@ def demo():
         subtitulo = (f"Validación incendio (demo, sintético) {anio_evento}: "
                      f"{resultado_grid['pct_confirmado_por_dnbr']}% confirmados por dNBR "
                      f"(verde=confirmado, gris=sin confirmar -- NO son datos reales)")
+        titulo_base = f"{id_proyecto} -- Validación de incendio (DEMO sintético)"
         geomatica.generar_mapa_3d(
             hidrologia, id_proyecto, html_path, subtitulo=subtitulo, utm_crs=utm_crs, capas_extra=capas_extra,
+            titulo_base=titulo_base,
         )
         log(f"Mapa 3D demo (validación de incendio) generado en: {html_path}")
     except ImportError as e:
@@ -964,14 +1339,18 @@ def main():
     ap.add_argument("--carpeta-salida", type=str, default=None)
     ap.add_argument("--proyecto-gee", type=str, default=None, help="ID de proyecto de Google Cloud para ee.Initialize(project=...)")
     ap.add_argument("--mapa-3d", action="store_true",
-                     help="Genera también el mapa 3D (verde=confirmado por dNBR, gris=sin confirmar)")
+                     help="Genera también el mapa 3D (verde=confirmado por dNBR, gris=sin confirmar). "
+                          "Con --historial, combina TODOS los años evaluados en una sola capa de cada "
+                          "color (año en el hover) -- no gasta cupo GEE extra, reusa el dNBR ya descargado.")
     ap.add_argument("--historial", action="store_true",
                      help="Modo multi-año: evalúa causa probable (incendio/screening/sin evaluar) para un "
                           "rango de años a la vez, por zona, y guarda UN CSV consolidado (ver "
                           "procesar_historial_incendios_real). Usa --anio-inicio/--anio-fin en vez de "
                           "--fecha-evento/--anio-hansen.")
     ap.add_argument("--anio-inicio", type=int, default=None,
-                     help="Solo con --historial: primer año a evaluar (default: config.DEFORESTACION_ANIO_MIN_SENTINEL2)")
+                     help="Solo con --historial: primer año a evaluar (default: config.DEFORESTACION_ANIO_MIN_SENTINEL2). "
+                          "Años entre config.VALIDACION_INCENDIO_ANIO_MIN_LANDSAT y ese default usan Landsat "
+                          "5/7/8 en vez de Sentinel-2 automáticamente -- ver _coleccion_landsat_nbr().")
     ap.add_argument("--anio-fin", type=int, default=None, help="Solo con --historial: default: año actual - 1")
     ap.add_argument("--eventos-confirmados", type=str, default=None,
                      help="Solo con --historial: años con fecha real conocida, formato 'anio:YYYY-MM-DD' "
@@ -1004,7 +1383,7 @@ def main():
             ha_min_para_evaluar=args.ha_min_evaluar, nubosidad_max_pct=args.nubosidad_max,
             umbral_dnbr_quemado=args.umbral_dnbr, percentil_cauce=args.percentil_cauce,
             historial_csv_existente=args.historial_csv_existente, carpeta_salida=args.carpeta_salida,
-            carpeta_srtm=args.carpeta_srtm, proyecto_gee=args.proyecto_gee,
+            carpeta_srtm=args.carpeta_srtm, proyecto_gee=args.proyecto_gee, mapa_3d=args.mapa_3d,
         )
         return
 

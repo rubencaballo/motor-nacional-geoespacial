@@ -468,7 +468,9 @@ def generar_mapa_3d_corredor(cuenca, geom_utm_origen, id_corredor, html_path, ut
         customdata_terreno = np.dstack([Z_mesh, lat_full[::paso, ::paso], lon_full[::paso, ::paso]])
     fig.add_trace(go.Surface(
         z=Z_mesh, x=x_km_mesh, y=y_km_mesh, colorscale="Earth", opacity=0.93, name="Terreno",
-        customdata=customdata_terreno,
+        customdata=customdata_terreno, showscale=False,  # altitud ya se lee en Z y en el hover -- mismo
+        # criterio que geomatica.generar_mapa_3d(): un colorbar de altitud aquí solo compite por
+        # espacio con la leyenda (Polígono de origen, Cauces, Punto de salida, etc.)
         hovertemplate=("Altitud: %{customdata[0]:.0f} msnm<br>Lat: %{customdata[1]:.5f}<br>"
                         "Lon: %{customdata[2]:.5f}<extra></extra>") if customdata_terreno is not None
                        else "Altitud: %{z:.0f} msnm<extra></extra>",
@@ -590,7 +592,14 @@ def generar_mapa_3d_corredor(cuenca, geom_utm_origen, id_corredor, html_path, ut
     fig.update_layout(
         title=titulo,
         scene=dict(xaxis_title="Este [km]", yaxis_title="Norte [km]", zaxis_title="Altitud [msnm]",
-                   aspectmode="manual", aspectratio=dict(x=1, y=1, z=0.35)),
+                   aspectmode="manual", aspectratio=dict(x=1, y=1, z=0.35),
+                   camera=dict(eye=dict(x=1.35, y=-1.35, z=0.8), center=dict(x=0, y=0, z=-0.05))),
+        # Mismo criterio que geomatica.generar_mapa_3d(): leyenda anclada arriba a la
+        # izquierda (antes, sin posición fija, Plotly la mandaba a la esquina superior
+        # derecha por default -- aquí no hay colorbar que le compita, pero sí queda
+        # mejor separada del área del mapa en corredores muy anchos).
+        legend=dict(x=0.01, y=0.99, bgcolor="rgba(255,255,255,0.75)"),
+        margin=dict(l=10, r=10, t=90, b=10),
         autosize=True,
     )
     fig.write_html(html_path)

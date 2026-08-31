@@ -481,13 +481,24 @@ def construir_capa_deforestacion_3d(lossyear_alineado, hidrologia, anio_inicio=N
     hovertemplate += "<extra></extra>"
     customdata = np.column_stack(customdata_cols)
 
+    # Ticks explícitos del colorbar: el tickmode automático de Plotly elige un
+    # paso "bonito" (ej. cada 2 años) desde anio_inicio -- si anio_fin cae en
+    # un año que ese paso no toca (ej. rango par-a-impar 2010-2025), el último
+    # año NUNCA aparece impreso en la barra, aunque el punto sí esté pintado
+    # con el color extremo correcto (cmax). Visualmente parece que el dato
+    # "no cuadra" con la escala cuando en realidad el hover es el valor real
+    # y la escala solo se saltó ese número. Se fuerza aquí que anio_inicio y
+    # anio_fin siempre queden etiquetados, para no dejarle esa duda a quien
+    # vea el mapa sin poder preguntar.
+    tickvals = list(range(anio_inicio, anio_fin, 2)) + [anio_fin]
+
     capa = go.Scatter3d(
         x=x_km, y=y_km, z=z_km, mode="markers",
         marker=dict(
             size=2.6, color=anios_reales,
             colorscale=[[0.0, "#FFFF00"], [0.33, "#FFA500"], [0.66, "#FF4500"], [1.0, "#8B0000"]],
             cmin=anio_inicio, cmax=anio_fin, opacity=0.85,
-            colorbar=dict(title="Año de<br>pérdida", x=1.15),
+            colorbar=dict(title="Año de<br>pérdida", x=1.15, tickvals=tickvals),
         ),
         customdata=customdata, hovertemplate=hovertemplate,
         name=f"Deforestación Hansen {anio_inicio}-{anio_fin}",
@@ -554,11 +565,44 @@ def generar_mapa_3d_deforestacion(geojson_path, id_proyecto, zonas_m=None, anio_
     subtitulo = (f"Deforestación Hansen {anio_inicio}-{anio_fin}: {ha_perdidas_visual:.2f} ha perdidas dentro "
                  f"del área visual (buffer {max(zonas_m)}m) -- amarillo=más antiguo, rojo oscuro=más reciente")
 
+    # Aviso honesto de que esta cifra es específica de ESTE mapa (conteo de píxeles ya remuestreados a la
+    # malla del terreno, ver docstring de generar_desglose_anual_visual) y casi seguro no va a coincidir con
+    # el total "oficial" de la plataforma (deforestacion_resumen_sin_traslape_*.csv, consulta vectorial directa
+    # en Earth Engine, la que alimenta core/carbono_perdida.py) -- típicamente unos pocos puntos porcentuales
+    # de diferencia por el remuestreo, no un error. Si ese CSV ya existe (se corrió procesar_sitio_real() antes
+    # o después), se cita su cifra real en vez de dejar la duda -- si no existe todavía, el aviso queda
+    # genérico, sin inventar un número.
+    ruta_resumen_oficial = os.path.join(carpeta_salida, f"deforestacion_resumen_sin_traslape_{id_proyecto.lower()}.csv")
+    if os.path.exists(ruta_resumen_oficial):
+        try:
+            df_oficial = pd.read_csv(ruta_resumen_oficial)
+            fila_oficial = df_oficial[(df_oficial["anillo"] == "TOTAL (suma sin traslape)")
+                                       & df_oficial["anio"].astype(str).str.startswith("TOTAL ")]
+            if not fila_oficial.empty:
+                ha_oficial = fila_oficial["perdida_ha"].iloc[0]
+                periodo_oficial = fila_oficial["anio"].iloc[0]
+                # Título de Plotly: NO hace word-wrap solo, una línea larga se corta en el borde del gráfico
+                # ("aquí se pierden los números", mismo problema ya resuelto antes para otros mapas) -- por eso
+                # aquí se parte en líneas cortas con <br> en vez de una sola frase larga.
+                subtitulo += (f"<br>Esta cifra es del conteo de píxeles de este mapa (no el total oficial)."
+                              f"<br>Total oficial de la plataforma ({periodo_oficial}): {ha_oficial:,.1f} ha "
+                              "-- ver mapa de CO2e liberado.")
+        except Exception as e:
+            log(f"No se pudo leer {ruta_resumen_oficial} para citar el total oficial en el subtítulo: {e}",
+                nivel="WARN")
+    else:
+        subtitulo += ("<br>Esta cifra es del conteo de píxeles de este mapa, no la medición oficial de la "
+                       "plataforma."
+                       "<br>La oficial sale de deforestacion_resumen_sin_traslape_*.csv (consulta directa en "
+                       "Earth Engine).")
+
     generar_desglose_anual_visual(lossyear_alineado, hidrologia, anio_inicio, anio_fin, id_proyecto, carpeta_salida)
 
     html_path = os.path.join(carpeta_salida, f"{id_proyecto.lower()}_3d_deforestacion.html")
+    titulo_base = f"{id_proyecto} -- Modelo de terreno 3D + deforestación Hansen {anio_inicio}-{anio_fin}"
     geomatica.generar_mapa_3d(
         hidrologia, id_proyecto, html_path, subtitulo=subtitulo, utm_crs=utm_crs, capas_extra=capas_extra,
+        titulo_base=titulo_base,
     )
     log(f"Mapa 3D con deforestación por año: {html_path}")
     return html_path
@@ -673,8 +717,10 @@ def demo():
 
         html_path = os.path.join(carpeta_tmp, f"{id_proyecto.lower()}_3d_deforestacion.html")
         subtitulo = f"Deforestación sintética {anio_inicio}-{anio_fin} (demo -- NO son datos reales de Hansen)"
+        titulo_base = f"{id_proyecto} -- Modelo de terreno 3D + deforestación (DEMO sintético)"
         geomatica.generar_mapa_3d(
             hidrologia, id_proyecto, html_path, subtitulo=subtitulo, utm_crs=utm_crs, capas_extra=capas_extra,
+            titulo_base=titulo_base,
         )
         log(f"Mapa 3D demo (con manchas de deforestación sintéticas) generado en: {html_path}")
     except ImportError as e:

@@ -209,6 +209,106 @@ def analizar_correlacion_historial(df_historial, campo_clima="ndmi", lags=None):
 
 
 # ==============================================================================
+# --- PÉRDIDA (Hansen) -> AGUA SUPERFICIAL (JRC), CON REZAGO -------------------
+# ==============================================================================
+def analizar_correlacion_perdida_agua(df_perdida_historial, df_agua_sin_traslape, lags=None,
+                                       excluir_anios_perdida=None):
+    """Dirección INVERSA a analizar_correlacion_historial/CHIRPS de este mismo
+    módulo: esas preguntan si el CLIMA precede a la pérdida; esta pregunta si
+    la PÉRDIDA (Hansen) precede una caída de agua superficial visible (JRC) --
+    la duda real que motivó esto: "¿la tala está afectando el agua, o no?".
+
+    El lado de pérdida se convierte a anillo exclusivo (sin traslape) igual
+    que el resto del módulo (_perdida_exclusiva_por_zona). El lado de agua
+    NO se recalcula aquí -- se reutiliza tal cual el CSV que ya produce
+    core.agua_superficial.generar_resumen_agua_sin_traslape() (columnas
+    anillo/anio/ha_agua, YA sin traslape, mismo nombre de anillo que
+    nombre_anillo de este módulo -- por eso se puede cruzar directo por
+    nombre sin reconciliar geometrías).
+
+    excluir_anios_perdida: años a quitar del lado de PÉRDIDA antes de
+    correlacionar (ej. un año con una cifra atípica gigante que por sí solo
+    dominaría cualquier r) -- se reporta explícito en la columna
+    anios_excluidos_perdida, nunca se descarta en silencio.
+
+    OJO -- LIMITACIÓN DE VARIANZA, no solo de muestra chica: si la zona
+    'resultado' es un cuerpo de agua real y estable (ej. una laguna
+    permanente -- ver el hallazgo de Laguna Tilapa en el núcleo de Cofre de
+    Perote), ha_agua_total casi no varía año con año POR DISEÑO. Un r
+    cercano a 0 ahí no necesariamente dice "la deforestación no afecta el
+    agua" -- puede decir "casi no hay nada que explicar, la variable
+    resultado casi no se mueve". Se reporta explícito en la columna
+    varianza_baja_agua para no confundir "sin correlación" con "sin
+    variación que correlacionar" -- calculada SOLO sobre los años que ESE
+    lag realmente usó (columna anios_usados + el propio lag), nunca sobre
+    la serie completa del CSV: la serie completa de agua suele cubrir más
+    años que los que tiene pérdida (ej. JRC 1984-2021 vs Hansen 2010-2025),
+    y años de agua que nunca entran a la correlación (ej. el hueco de
+    archivo Landsat 1987-1991, ver core/agua_superficial.py) no deberían
+    contar para decidir si ESTA correlación en particular tuvo o no
+    variación real que explicar."""
+    faltantes_p = [c for c in ["zona", "buffer_m", "anio", "perdida_ha"] if c not in df_perdida_historial.columns]
+    faltantes_a = [c for c in ["anillo", "anio", "ha_agua"] if c not in df_agua_sin_traslape.columns]
+    if faltantes_p or faltantes_a:
+        log(f"analizar_correlacion_perdida_agua: faltan columnas -- pérdida:{faltantes_p} agua:{faltantes_a} "
+            "-- no se puede correlacionar.", nivel="ERROR")
+        return None
+
+    excluir_anios_perdida = set(excluir_anios_perdida or [])
+    exclusiva, zona_de_buffer, nombre_anillo = _perdida_exclusiva_por_zona(df_perdida_historial)
+
+    agua_por_anillo = {
+        anillo: dict(zip(grupo["anio"], grupo["ha_agua"]))
+        for anillo, grupo in df_agua_sin_traslape.groupby("anillo") if not str(anillo).startswith("TOTAL")
+    }
+
+    filas = []
+    for buf_m, anillo in nombre_anillo.items():
+        if anillo not in agua_por_anillo:
+            log(f"  anillo '{anillo}' no aparece en el CSV de agua -- se omite.", nivel="WARN")
+            continue
+
+        anios_perdida = sorted(a for a in exclusiva[buf_m] if a not in excluir_anios_perdida)
+        perdida_vals = [exclusiva[buf_m][a] for a in anios_perdida]
+        agua_vals_alineados = [agua_por_anillo[anillo].get(a) for a in anios_perdida]
+
+        for r in analizar_correlacion_lag(anios_perdida, perdida_vals, agua_vals_alineados, lags=lags):
+            # Varianza del lado 'resultado' (agua), calculada SOLO sobre los años que ESTE lag realmente
+            # usó (anios_usados + lag) -- ver el porqué en el docstring de la función. Nunca sobre la
+            # serie completa del CSV de agua, que casi siempre cubre años fuera de esta correlación.
+            agua_vals_usados = [agua_por_anillo[anillo].get(a + r["lag"]) for a in r["anios_usados"]]
+            agua_vals_usados = [v for v in agua_vals_usados if v is not None]
+            varianza_baja = bool(np.std(agua_vals_usados) < 0.1) if len(agua_vals_usados) >= 2 else True
+
+            r["zona"] = anillo
+            r["campo_resultado"] = "ha_agua_total (JRC, sin traslape)"
+            r["direccion"] = "perdida(anio) -> ha_agua(anio+lag)"
+            r["geometria_perdida"] = "anillo exclusivo (sin traslape)"
+            r["geometria_agua"] = "anillo exclusivo (sin traslape)"
+            r["varianza_baja_agua"] = varianza_baja
+            r["anios_excluidos_perdida"] = sorted(excluir_anios_perdida) if excluir_anios_perdida else []
+            filas.append(r)
+
+    if not filas:
+        log("analizar_correlacion_perdida_agua: no hubo ninguna zona con datos de pérdida Y agua a la vez.",
+            nivel="WARN")
+        return None
+
+    df_out = pd.DataFrame(filas)[
+        ["zona", "campo_resultado", "direccion", "lag", "n_pares", "r", "r2", "muestra_chica",
+         "varianza_baja_agua", "geometria_perdida", "geometria_agua", "anios_usados", "anios_excluidos_perdida"]
+    ]
+    for _, row in df_out.iterrows():
+        etiqueta_lag = "mismo año" if row["lag"] == 0 else f"agua {row['lag']} año(s) DESPUÉS de la pérdida"
+        aviso = " -- MUESTRA CHICA, no concluyente" if row["muestra_chica"] else ""
+        aviso_var = (" -- variación casi nula del lado agua, un r cercano a 0 es esperable, no es evidencia "
+                      "de 'sin efecto'" if row["varianza_baja_agua"] else "")
+        r_txt = f"r={row['r']}, r²={row['r2']}" if row["r"] is not None else "sin suficientes pares"
+        log(f"  {row['zona']} | pérdida vs agua ({etiqueta_lag}) | n={row['n_pares']} | {r_txt}{aviso}{aviso_var}")
+    return df_out
+
+
+# ==============================================================================
 # --- CHIRPS: PRECIPITACIÓN ANUAL REAL PARA UN POLÍGONO -----------------------
 # ==============================================================================
 def calcular_precipitacion_anual_gee(ee, geom_wgs84_geojson, anio_inicio, anio_fin, dataset=None):
@@ -258,8 +358,10 @@ def calcular_precipitacion_anual_gee(ee, geom_wgs84_geojson, anio_inicio, anio_f
 # ==============================================================================
 def procesar_correlacion_hidrica_real(geojson_path, id_proyecto, zonas_m=None, anio_inicio=None, anio_fin=None,
                                        historial_csv_existente=None, lags=None, carpeta_salida=None,
-                                       proyecto_gee=None, incluir_chirps=True, precipitacion_csv_existente=None):
-    """Pipeline completo, en dos partes independientes:
+                                       proyecto_gee=None, incluir_chirps=True, precipitacion_csv_existente=None,
+                                       agua_csv_existente=None, excluir_anios_perdida=None):
+    """Pipeline completo, en TRES partes independientes (todas opcionales,
+    activadas solo si se les da su CSV/flag correspondiente):
     (1) SIEMPRE corre GRATIS la correlación contra el NDMI ya calculado, si
         le pasas `historial_csv_existente` (el CSV de core/deforestacion.py)
         -- cero cupo GEE, es solo aritmética sobre datos que ya tienes.
@@ -271,8 +373,14 @@ def procesar_correlacion_hidrica_real(geojson_path, id_proyecto, zonas_m=None, a
         (b) si no se da eso y `incluir_chirps=True`, descarga CHIRPS real
             por zona/año -- esto SÍ gasta cupo GEE (una reducción por
             año/zona, barato comparado con Sentinel-2).
-    En ambos casos (1) y (2), el lado de PÉRDIDA se convierte a anillo
-    exclusivo (sin traslape) antes de correlacionar -- ver docstring de
+    (3) `agua_csv_existente`: correlación pérdida->agua (JRC, ver
+        analizar_correlacion_perdida_agua) -- SIEMPRE GRATIS, cero cupo GEE,
+        reusa el CSV agua_superficial_resumen_sin_traslape_*.csv que ya
+        generó core.agua_superficial. `excluir_anios_perdida` se pasa tal
+        cual a esa función (ver su docstring -- para un año con una cifra
+        de pérdida atípica que dominaría cualquier r).
+    En las tres, el lado de PÉRDIDA se convierte a anillo exclusivo (sin
+    traslape) antes de correlacionar -- ver docstring de
     _perdida_exclusiva_por_zona. Sin esto, buffer_500m y buffer_1000m salen
     artificialmente parecidos entre sí porque comparten los mismos píxeles
     de pérdida adentro (muñeca rusa)."""
@@ -409,7 +517,29 @@ def procesar_correlacion_hidrica_real(geojson_path, id_proyecto, zonas_m=None, a
             log("No hay --historial-csv-existente válido -- se descargó precipitación pero se omite la "
                 "correlación (no se puede quitar la muñeca rusa sin el historial de pérdida).", nivel="WARN")
 
-    return resultados_ndmi, resultados_chirps
+    resultados_agua = None
+    if agua_csv_existente and os.path.exists(agua_csv_existente):
+        if df_historial is None:
+            log("--agua-csv-existente se dio pero no hay --historial-csv-existente válido -- no se puede "
+                "quitar la muñeca rusa del lado de pérdida, se omite la correlación pérdida-agua.", nivel="ERROR")
+        else:
+            log(f"Analizando correlación pérdida->agua superficial (JRC, sin costo GEE): {agua_csv_existente}")
+            df_agua_sin_traslape = pd.read_csv(agua_csv_existente)
+            resultados_agua = analizar_correlacion_perdida_agua(
+                df_historial, df_agua_sin_traslape, lags=lags, excluir_anios_perdida=excluir_anios_perdida,
+            )
+            if resultados_agua is not None:
+                sufijo = "_sin_" + "-".join(str(a) for a in sorted(excluir_anios_perdida)) if excluir_anios_perdida else ""
+                csv_agua_corr = os.path.join(
+                    carpeta_salida, f"correlacion_perdida_agua_{id_proyecto.lower()}{sufijo}.csv"
+                )
+                resultados_agua.to_csv(csv_agua_corr, index=False)
+                log(f"CSV correlación pérdida-agua guardado en: {csv_agua_corr}", nivel="OK")
+    elif agua_csv_existente:
+        log(f"--agua-csv-existente no encontrado: {agua_csv_existente} -- se omite la correlación pérdida-agua.",
+            nivel="WARN")
+
+    return resultados_ndmi, resultados_chirps, resultados_agua
 
 
 # ==============================================================================
@@ -461,6 +591,14 @@ def main():
                      help="CSV precipitacion_anual_*.csv de una corrida previa -- si se da, recalcula la "
                           "correlación de precipitación CERO cupo GEE nuevo (ej. para aplicar el fix de "
                           "anillo exclusivo sin volver a pagar CHIRPS). Tiene prioridad sobre --sin-chirps.")
+    ap.add_argument("--agua-csv-existente", type=str, default=None,
+                     help="CSV de core/agua_superficial.py (agua_superficial_resumen_sin_traslape_*.csv) -- si "
+                          "se da (junto con --historial-csv-existente), corre GRATIS la correlación "
+                          "pérdida->agua superficial (JRC), sin tocar GEE.")
+    ap.add_argument("--excluir-anios-perdida", type=str, default=None,
+                     help="Años a excluir del lado de PÉRDIDA antes de correlacionar, separados por coma "
+                          "(ej. '2025' para un año con una cifra atípica que dominaría cualquier r) -- se "
+                          "reporta explícito en el CSV de salida, nunca se descarta en silencio.")
     ap.add_argument("--proyecto-gee", type=str, default=None)
     ap.add_argument("--carpeta-salida", type=str, default=None)
     args = ap.parse_args()
@@ -474,6 +612,9 @@ def main():
 
     zonas_m = [int(z) for z in args.zonas.split(",")] if args.zonas else None
     lags = tuple(int(x) for x in args.lags.split(",")) if args.lags else None
+    excluir_anios_perdida = (
+        [int(a) for a in args.excluir_anios_perdida.split(",")] if args.excluir_anios_perdida else None
+    )
 
     procesar_correlacion_hidrica_real(
         geojson_path=args.geojson, id_proyecto=args.id_proyecto, zonas_m=zonas_m,
@@ -482,6 +623,8 @@ def main():
         carpeta_salida=args.carpeta_salida, proyecto_gee=args.proyecto_gee,
         incluir_chirps=not args.sin_chirps,
         precipitacion_csv_existente=args.precipitacion_csv_existente,
+        agua_csv_existente=args.agua_csv_existente,
+        excluir_anios_perdida=excluir_anios_perdida,
     )
 
 

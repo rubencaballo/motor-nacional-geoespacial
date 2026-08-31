@@ -113,6 +113,15 @@ VALIDACION_INCENDIO_SCREENING_MESES_PRE = (1, 4)  # ene-abr: temporada seca/temp
 VALIDACION_INCENDIO_SCREENING_MESES_POST = (9, 12)  # sep-dic: fuera de temporada de incendios,
 # cicatriz de quema (si la hubo) ya visible en el compuesto; vegetacion sana aun no reverdece del todo
 
+VALIDACION_INCENDIO_ANIO_MIN_LANDSAT = 2000  # antes de DEFORESTACION_ANIO_MIN_SENTINEL2 (2016), la
+# validacion de causa usa Landsat 5/7/8 combinados en vez de Sentinel-2 (ver
+# core/validacion_incendios.py: _coleccion_landsat_nbr()) -- el piso aqui es 2000 porque Hansen
+# lossyear TAMPOCO tiene datos antes de ese anio (no tiene caso pedirle a Landsat cobertura de anios
+# que Hansen ni siquiera puede reportar como perdida). Landsat 5 TM cubre hasta nov-2011, Landsat 7
+# ETM+ cubre todo el rango (con huecos documentados por la falla del SLC desde 2003), Landsat 8 OLI
+# entra desde feb-2013 -- se combinan los tres en una sola coleccion para maximizar imagenes
+# limpias por compuesto, en vez de usar uno solo y quedarse corto en años con pocas imagenes.
+
 # --- core/correlacion_hidrica.py: prueba si el estres hidrico (NDMI o
 #     precipitacion CHIRPS) de un anio PRECEDE (no coincide con) la perdida
 #     Hansen de anios posteriores -- para distinguir "el bosque se debilito

@@ -57,6 +57,26 @@ Esto corre 5 casos de prueba con valores sintéticos (no consulta Earth Engine e
 - ⚠️ El módulo de ML (`AdaptadorMLPoderoso`) no tiene un modelo entrenado con datos reales; hoy opera con reglas físicas de respaldo.
 - ⚠️ La arquitectura está diseñada para escalar a volúmenes grandes de predios, pero no se ha probado en producción a esa escala.
 
+## Plataforma de monitoreo de ANPs (Salamandra / IRD Cloud Engine)
+
+Este mismo `core/` también contiene un segundo pipeline, independiente del motor
+EUDR de arriba: monitoreo 3D de Áreas Naturales Protegidas (terreno, hidrología D8,
+carbono/CO2e almacenado y liberado, deforestación Hansen, validación de incendios),
+piloteado en Cofre de Perote, Veracruz.
+
+- `core/analizar_sitio.py` — orquestador (terreno + carbono + validación hidrológica)
+- `core/geomatica.py` — DEM/hidrología D8 y el mapa 3D base
+- `core/carbono.py` — biomasa/CO2e almacenado por zona (ESA CCI + GEDI L4A)
+- `core/deforestacion.py` — pérdida Hansen por año + mapa 3D
+- `core/carbono_perdida.py` — cruce carbono × pérdida, balance, mapa 3D de CO2e liberado
+- `core/validacion_incendios.py` — validación de causa (incendio vs. tala) por dNBR
+- `core/agua_superficial.py` — agua superficial visible por año (JRC Global Surface Water), experimental
+
+**Los comandos exactos para correr este pipeline completo, en el orden correcto,
+están en [`RUNBOOK.md`](RUNBOOK.md)** — no en este README. Para correrlo de un
+tirón sobre un sitio nuevo, edita las variables al principio de
+[`run_pipeline.sh`](run_pipeline.sh) y corre `bash run_pipeline.sh`.
+
 ## Contexto
 
 Desarrollado por Rubén Viccon Morales como parte de IRD CLOUD Engine, en el marco de un piloto de trazabilidad EUDR con productores de café de Teocelo, Veracruz (ver también GEODICTUM, sello de trazabilidad entregado a productores en 2026).

@@ -79,6 +79,7 @@ Qué NO calcula:
 import argparse
 import os
 
+import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, mapping
@@ -374,10 +375,115 @@ def combinar_con_geomatica(carpeta_resultados, id_proyecto):
     df_combinado = _agregar_co2e_incremental(df_combinado, "co2e_t", "co2e_incertidumbre_t", "co2e")
     df_combinado = _agregar_co2e_incremental(df_combinado, "gedi_co2e_t", "gedi_co2e_incertidumbre_t", "gedi_co2e")
 
+    zonas_m_usadas = sorted(df_combinado["buffer_m"].dropna().unique().tolist())
+    df_combinado = _agregar_fila_total_carbono(df_combinado, zonas_m_usadas)
+
     out_path = os.path.join(carpeta_resultados, f"resumen_terreno_y_carbono_{id_proyecto.lower()}.csv")
     df_combinado.to_csv(out_path, index=False)
-    log(f"Resumen combinado (terreno + carbono, con CO2e incremental por anillo, ESA CCI + GEDI) guardado en: {out_path}")
+    log(f"Resumen combinado (terreno + carbono, con CO2e incremental por anillo, ESA CCI + GEDI, "
+        f"+ fila TOTAL) guardado en: {out_path}")
     return df_combinado
+
+
+def _agregar_fila_total_carbono(df_combinado, zonas_m):
+    """Agrega UNA fila 'TOTAL' al final de resumen_terreno_y_carbono con el
+    gran total de CO2e (anillo exclusivo, sí sumable) para ESA CCI y GEDI
+    -- para no tener que sumar a mano las filas por zona ni ir a buscarlo
+    al subtítulo del mapa 3D (que ya lo calcula, pero solo como texto).
+
+    El resto de columnas (terreno, AGB/ha por zona, etc.) se dejan vacías
+    a propósito: no existe un 'total' que tenga sentido para ellas (sumar
+    elev_promedio_m entre zonas, por ejemplo, no significa nada). Solo se
+    llenan las columnas donde sumar SÍ es correcto -- los *_incremental_t
+    (ya en anillo exclusivo, por diseño de _agregar_co2e_incremental) y
+    gedi_n_muestras (conteo, sí sumable)."""
+    fila_total = {col: None for col in df_combinado.columns}
+    fila_total["zona"] = f"TOTAL (anillo exclusivo, 0-{max(zonas_m)}m, sí sumable)"
+    fila_total["buffer_m"] = max(zonas_m)
+
+    if "co2e_incremental_t" in df_combinado.columns:
+        vals = df_combinado["co2e_incremental_t"].dropna()
+        fila_total["co2e_incremental_t"] = round(vals.sum(), 1) if len(vals) else None
+    if "co2e_incremental_incertidumbre_t" in df_combinado.columns:
+        unc = df_combinado["co2e_incremental_incertidumbre_t"].dropna()
+        fila_total["co2e_incremental_incertidumbre_t"] = round(float(np.sqrt((unc ** 2).sum())), 1) if len(unc) else None
+    if "gedi_co2e_incremental_t" in df_combinado.columns:
+        gedi_vals = df_combinado["gedi_co2e_incremental_t"].dropna()
+        fila_total["gedi_co2e_incremental_t"] = round(gedi_vals.sum(), 1) if len(gedi_vals) else None
+    if "gedi_co2e_incremental_incertidumbre_t" in df_combinado.columns:
+        unc_g = df_combinado["gedi_co2e_incremental_incertidumbre_t"].dropna()
+        fila_total["gedi_co2e_incremental_incertidumbre_t"] = round(float(np.sqrt((unc_g ** 2).sum())), 1) if len(unc_g) else None
+    if "gedi_n_muestras" in df_combinado.columns:
+        n = df_combinado["gedi_n_muestras"].dropna()
+        fila_total["gedi_n_muestras"] = int(n.sum()) if len(n) else None
+    for col_pasada in ("dataset", "anio_dataset", "gedi_dataset"):
+        if col_pasada in df_combinado.columns and not df_combinado[col_pasada].dropna().empty:
+            fila_total[col_pasada] = df_combinado[col_pasada].dropna().iloc[0]
+
+    return pd.concat([df_combinado, pd.DataFrame([fila_total])], ignore_index=True)
+
+
+def construir_capas_carbono_3d(hidrologia, df_zonas_reales, incluir_gedi=True):
+    """Arma capas_extra para geomatica.generar_mapa_3d(): el ANILLO visual
+    de cada zona (núcleo/buffer_500m/buffer_1000m, dibujado como borde de
+    puntos sobre el propio terreno -- mismo estilo que 'Cauce en <zona>',
+    ya usado en este mapa). El CO2e de cada zona se puede leer al pasar el
+    mouse sobre su anillo (hover), pero YA NO se escribe como texto
+    flotando en la escena 3D -- se probó así (ver versión anterior de esta
+    función) y en la práctica el texto queda cortado por los ejes, tapado
+    por el tooltip nativo de Plotly, o ilegible según el ángulo de cámara
+    ("aquí se pierden los números", feedback real del usuario). Los
+    números viven ahora en las tarjetas HTML alrededor del mapa (ver
+    generar_mapa_3d_con_carbono()) -- ahí SIEMPRE son legibles sin
+    importar cómo esté rotado el modelo. El texto en 3D world-space no es
+    un lugar confiable para números que alguien necesita leer con
+    certeza; el hover y las tarjetas sí lo son.
+
+    Reto pedido: "que cada anillo... me dijera cuánto carbono almacena" --
+    el anillo visual queda en la escena 3D (posición espacial, que sí
+    importa aquí); el número en sí vive en la tarjeta HTML de al lado
+    (legibilidad, que también importa, y en 3D no se puede garantizar).
+
+    NO recalcula nada: el número del hover es el mismo
+    co2e_incremental_t / gedi_co2e_incremental_t que ya trae
+    resumen_terreno_y_carbono_*.csv (anillo exclusivo, el mismo que ya se
+    verificó en balance_stock_vs_perdida y el mismo que usan las tarjetas
+    HTML) -- una sola fuente de verdad, nunca dos cálculos por separado.
+
+    La detección de bordes en sí (dónde dibujar el anillo) vive en
+    geomatica.construir_anillos_visuales_3d() -- esta función solo arma
+    el texto de hover con el CO2e de cada zona y se lo pasa; así
+    core/carbono_perdida.py puede dibujar SUS anillos (con hover de CO2e
+    LIBERADO en vez de almacenado) sin duplicar la detección de bordes.
+
+    hidrologia: salida de geomatica.calcular_hidrologia_d8() -- usa
+    'zona_de_pixel', que YA viene en anillo exclusivo por construcción
+    (ver ese docstring).
+    df_zonas_reales: resumen_terreno_y_carbono_*.csv ya cargado, SIN la
+    fila TOTAL (pásale df_combinado filtrado, o el DataFrame que arma
+    combinar_con_geomatica() antes de agregar esa fila)."""
+    from core import geomatica
+
+    hover_por_zona = {}
+    for _, fila in df_zonas_reales.iterrows():
+        zona = fila.get("zona")
+        if not isinstance(zona, str):
+            continue
+        co2e = fila.get("co2e_incremental_t")
+        if pd.isna(co2e):
+            continue
+        co2e_unc = fila.get("co2e_incremental_incertidumbre_t")
+        gedi = fila.get("gedi_co2e_incremental_t") if incluir_gedi else None
+        gedi_unc = fila.get("gedi_co2e_incremental_incertidumbre_t") if incluir_gedi else None
+
+        hover_txt = f"{zona} -- CO2e almacenado (ESA CCI, anillo exclusivo): {co2e:,.0f}"
+        hover_txt += f" ± {co2e_unc:,.0f} t" if pd.notna(co2e_unc) else " t"
+        if gedi is not None and pd.notna(gedi):
+            hover_txt += f"<br>{zona} -- CO2e almacenado (GEDI L4A, anillo exclusivo): {gedi:,.0f}"
+            hover_txt += f" ± {gedi_unc:,.0f} t" if pd.notna(gedi_unc) else " t"
+        hover_por_zona[zona] = hover_txt
+
+    return geomatica.construir_anillos_visuales_3d(hidrologia, hover_por_zona=hover_por_zona)
 
 
 def generar_mapa_3d_con_carbono(geojson_path, id_proyecto, zonas_m=None, percentil_cauce=None,
@@ -399,37 +505,15 @@ def generar_mapa_3d_con_carbono(geojson_path, id_proyecto, zonas_m=None, percent
         log("No se pudo generar el mapa con carbono: falta correr geomatica.py y/o carbono.py primero.", nivel="WARN")
         return None
 
-    partes = []
-    for _, fila in df_combinado.iterrows():
-        inc = fila.get("co2e_incremental_t")
-        unc_inc = fila.get("co2e_incremental_incertidumbre_t")
-        if pd.notna(inc):
-            partes.append(f"{fila['zona']}: {inc:,.0f}±{unc_inc:,.0f} t" if pd.notna(unc_inc) else f"{fila['zona']}: {inc:,.0f} t")
-    anio_dataset = df_combinado["anio_dataset"].iloc[0] if "anio_dataset" in df_combinado.columns else "?"
-    total_t = df_combinado["co2e_incremental_t"].sum()
-    subtitulo = (f"CO2e por anillo, sin traslape, SÍ sumable ({anio_dataset}, ESA CCI Biomass): "
-                 + " | ".join(partes) + f" | TOTAL hasta {max(zonas_m)}m: {total_t:,.0f} t "
-                 f"(estimado satelital con incertidumbre; no usar 'co2e_t' acumulado para sumar entre zonas)")
-
-    # Segunda línea: GEDI (mediciones LiDAR locales), solo si esa columna
-    # existe (se corrió con GEDI incluido -- no se agrega si no hay datos).
-    if "gedi_co2e_incremental_t" in df_combinado.columns:
-        partes_gedi = []
-        for _, fila in df_combinado.iterrows():
-            inc = fila.get("gedi_co2e_incremental_t")
-            unc_inc = fila.get("gedi_co2e_incremental_incertidumbre_t")
-            n_muestras = fila.get("gedi_n_muestras")
-            if pd.notna(inc):
-                etiqueta_n = f" ({int(n_muestras)} huellas)" if pd.notna(n_muestras) else ""
-                partes_gedi.append(
-                    f"{fila['zona']}: {inc:,.0f}±{unc_inc:,.0f} t{etiqueta_n}" if pd.notna(unc_inc)
-                    else f"{fila['zona']}: {inc:,.0f} t{etiqueta_n}"
-                )
-        if partes_gedi:
-            total_gedi_t = df_combinado["gedi_co2e_incremental_t"].sum()
-            subtitulo += (f"<br>CO2e por anillo, GEDI L4A (mediciones LiDAR locales): "
-                          + " | ".join(partes_gedi) + f" | TOTAL: {total_gedi_t:,.0f} t "
-                          f"(comparar contra ESA CCI arriba -- pueden diferir, ver docstring del módulo)")
+    # df_combinado (desde esta sesión) ya trae, al final, una fila TOTAL
+    # (ver _agregar_fila_total_carbono) -- para armar las tarjetas por
+    # zona y el total aquí abajo hay que trabajar SOLO sobre las zonas
+    # reales (nucleo/buffer_...), o esa fila TOTAL se sumaría una segunda
+    # vez sobre sí misma (bug real: dejaba el total al doble del valor
+    # correcto -- detectado y corregido en esta misma sesión).
+    df_zonas_reales = df_combinado[~df_combinado["zona"].astype(str).str.startswith("TOTAL")]
+    incluir_gedi = "gedi_co2e_incremental_t" in df_zonas_reales.columns
+    anio_dataset = df_zonas_reales["anio_dataset"].iloc[0] if "anio_dataset" in df_zonas_reales.columns else "?"
 
     geom_utm_nucleo, dst_array, meta_utm, utm_crs = geomatica.cargar_dem_utm(geojson_path, zonas_m, carpeta_srtm)
     hidrologia = geomatica.calcular_hidrologia_d8(
@@ -437,10 +521,120 @@ def generar_mapa_3d_con_carbono(geojson_path, id_proyecto, zonas_m=None, percent
         percentil_cauce or PERCENTIL_CAUCE_HIDROLOGIA,
         carpeta_srtm, id_proyecto,
     )
+    capas_extra = construir_capas_carbono_3d(hidrologia, df_zonas_reales, incluir_gedi=incluir_gedi)
+
+    # Título del propio Plotly: corto y sin repetir el nombre del
+    # proyecto (eso ya lo dice el <h1> de la página) -- los números por
+    # zona ya NO viven aquí (ver docstring de construir_capas_carbono_3d:
+    # el texto en 3D world-space se pierde según el ángulo de cámara,
+    # feedback real del usuario -- "aquí se pierden los números"). Las
+    # cifras completas viven en las tarjetas HTML de arriba, siempre
+    # legibles sin importar cómo esté rotado el modelo -- aquí solo queda
+    # una pista de interacción.
+    titulo_base = f"{id_proyecto} -- Modelo de terreno 3D + carbono (CO2e) por zona"
+    titulo_interno = "Vista 3D interactiva"
+    subtitulo_interno = "rota, acerca, y pasa el mouse sobre los anillos de color para ver su CO2e"
+    fig = geomatica.generar_mapa_3d(hidrologia, id_proyecto, html_path=None, subtitulo=subtitulo_interno,
+                                     utm_crs=utm_crs, titulo_base=titulo_interno, capas_extra=capas_extra,
+                                     devolver_fig=True)
+
     html_path = os.path.join(carpeta_salida, f"{id_proyecto.lower()}_3d_zonas_con_carbono.html")
-    geomatica.generar_mapa_3d(hidrologia, id_proyecto, html_path, subtitulo=subtitulo, utm_crs=utm_crs)
-    log(f"Mapa 3D con carbono: {html_path}")
+    html_completo = _construir_html_carbono_con_tarjetas(fig, df_zonas_reales, id_proyecto, titulo_base,
+                                                          anio_dataset, max(zonas_m), incluir_gedi)
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(html_completo)
+    log(f"Mapa 3D con carbono (con tarjetas): {html_path}")
     return html_path
+
+
+# ==============================================================================
+# --- TARJETAS HTML: los números de CO2e, fuera de la escena 3D -----------------
+# ==============================================================================
+# El diseño de la tarjeta y de la página (CSS, layout) vive en
+# core/reportes_html.py -- compartido con core/carbono_perdida.py (CO2e
+# LIBERADO), para que un mismo ajuste de diseño no haya que repetirlo en
+# dos archivos. Aquí solo queda la lógica de QUÉ dato va en cada tarjeta,
+# específica de "CO2e almacenado".
+def _construir_html_carbono_con_tarjetas(fig, df_zonas_reales, id_proyecto, titulo_base, anio_dataset,
+                                          buffer_max_m, incluir_gedi):
+    """Envuelve el go.Figure (ya armado por geomatica.generar_mapa_3d con
+    devolver_fig=True) en una página propia: encabezado + una tarjeta por
+    zona con su CO2e (grande, legible, sin importar cómo esté rotado el
+    mapa) + el total + el mapa 3D debajo. Reemplaza el título/subtítulo
+    largo de Plotly (donde los números "se perdían", feedback real del
+    usuario) sin tocar geomatica.py ni ningún otro módulo que lo use --
+    esto es exclusivo de este mapa."""
+    from core import carbono_perdida, reportes_html
+
+    # Hectáreas por anillo EXCLUSIVO (no acumuladas) -- mismo criterio que
+    # el CO2e de cada tarjeta, para no mezclar una cifra acumulada con una
+    # exclusiva en la misma tarjeta (esa mezcla sí sería muñeca rusa). Se
+    # reusa el cálculo ya verificado de carbono_perdida.py en vez de
+    # restar aquí por segunda vez -- una sola fuente de verdad para
+    # "cuánta área tiene cada anillo".
+    anillos_area, zona_de_buffer, _ = carbono_perdida._anillo_exclusivo_de_carbono(df_zonas_reales)
+    areas_por_zona = {zona_de_buffer[buf_m]: datos["area_ha"] for buf_m, datos in anillos_area.items()}
+
+    tarjetas = []
+    total_co2e = total_unc_sq = total_gedi = total_gedi_unc_sq = total_huellas = total_area = 0.0
+    hay_gedi_total = incluir_gedi
+
+    for _, fila in df_zonas_reales.iterrows():
+        zona = fila.get("zona")
+        co2e = fila.get("co2e_incremental_t")
+        if pd.isna(co2e):
+            continue
+        co2e_unc = fila.get("co2e_incremental_incertidumbre_t")
+        gedi = fila.get("gedi_co2e_incremental_t") if incluir_gedi else None
+        gedi_unc = fila.get("gedi_co2e_incremental_incertidumbre_t") if incluir_gedi else None
+        n_huellas = fila.get("gedi_n_muestras") if incluir_gedi else None
+        area_ha = areas_por_zona.get(zona)
+
+        lineas_secundarias = []
+        if gedi is not None and pd.notna(gedi):
+            unc_txt = f" ± {gedi_unc:,.0f} t" if pd.notna(gedi_unc) else ""
+            huellas_txt = f" · {int(n_huellas):,} huellas" if pd.notna(n_huellas) else ""
+            lineas_secundarias.append(
+                reportes_html.linea_secundaria_html(f"{gedi:,.0f} t CO2e{unc_txt}", f"GEDI L4A{huellas_txt}"))
+        nota = f"± {co2e_unc:,.0f} t · ESA CCI Biomass" if pd.notna(co2e_unc) else "ESA CCI Biomass"
+
+        tarjetas.append(reportes_html.tarjeta_html(
+            zona, reportes_html.COLORES_ZONA_HEX.get(zona, "#666"), f"{co2e:,.0f}", "t CO2e",
+            nota_principal=nota, lineas_secundarias=lineas_secundarias, area_ha=area_ha,
+        ))
+        total_co2e += co2e
+        total_unc_sq += (co2e_unc ** 2) if pd.notna(co2e_unc) else 0.0
+        if area_ha is not None:
+            total_area += area_ha
+        if gedi is not None and pd.notna(gedi):
+            total_gedi += gedi
+            total_gedi_unc_sq += (gedi_unc ** 2) if pd.notna(gedi_unc) else 0.0
+            total_huellas += n_huellas if pd.notna(n_huellas) else 0.0
+        else:
+            hay_gedi_total = False
+
+    lineas_total = []
+    if hay_gedi_total:
+        lineas_total.append(reportes_html.linea_secundaria_html(
+            f"{total_gedi:,.0f} t CO2e ± {total_gedi_unc_sq ** 0.5:,.0f} t", f"GEDI L4A · {int(total_huellas):,} huellas"))
+    tarjeta_total = reportes_html.tarjeta_html(
+        "TOTAL", reportes_html.COLOR_TOTAL_HEX, f"{total_co2e:,.0f}", "t CO2e",
+        nota_principal=f"± {total_unc_sq ** 0.5:,.0f} t · ESA CCI Biomass", lineas_secundarias=lineas_total,
+        nombre_mostrado=f"Total (0-{buffer_max_m} m, anillos sumados)", area_ha=total_area, es_total=True,
+    )
+
+    div_mapa = fig.to_html(full_html=False, include_plotlyjs=True, config={"displaylogo": False})
+    subtitulo = (f"CO2e almacenado por zona -- anillo exclusivo, sí sumable entre tarjetas (dataset {anio_dataset}, "
+                 f"ESA CCI Above-Ground Biomass{' + GEDI L4A' if incluir_gedi else ''})")
+    nota_pie = ("Los anillos de colores sobre el modelo marcan el límite de cada zona (rojo=núcleo, "
+                "naranja=buffer 500m, dorado=buffer 1000m) -- pasa el mouse sobre el anillo para ver su CO2e "
+                "también ahí. Incertidumbre de cada tarjeta: desviación estándar reportada por el dataset "
+                "satelital, no un intervalo de confianza. GEDI y ESA CCI son dos estimaciones independientes -- "
+                "no se promedian entre sí.")
+    return reportes_html.pagina_html_con_tarjetas(
+        f"{id_proyecto} -- Carbono por zona", titulo_base, subtitulo,
+        "".join(tarjetas) + tarjeta_total, div_mapa, nota_pie,
+    )
 
 
 # ==============================================================================

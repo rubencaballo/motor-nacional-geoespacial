@@ -228,6 +228,12 @@ def calcular_hidrologia_d8(dst_array, meta_utm, geom_utm_nucleo, zonas_m, buf_vi
     return {
         "Z_smooth": Z_smooth, "Z_raw": Z_raw, "stream_mask": stream_mask, "zona_de_pixel": zona_de_pixel,
         "pw_v": pw_v, "ph_v": ph_v, "transform": trans_viz,
+        # flow_dir: dirección de flujo D8 CRUDA (códigos ESRI 1/2/4/8/16/32/64/128, mismo dirmap de
+        # arriba), añadida sin tocar ninguna clave existente -- geomatica.py ya la calculaba para
+        # llegar a acc/stream_mask, pero antes se descartaba. core/corredor_descendente.py la necesita
+        # para trazar, píxel a píxel, hacia dónde escurre el agua desde un punto dado (ej. una cicatriz
+        # de incendio) -- algo que stream_mask (solo "es cauce sí/no") no puede responder.
+        "flow_dir": np.asarray(flow_dir),
     }
 
 
@@ -244,7 +250,38 @@ def calcular_grid_latlon(transform, utm_crs, rows, cols):
     return lats, lons
 
 
-def generar_mapa_3d(hidrologia, id_proyecto, html_path, subtitulo=None, utm_crs=None):
+def calcular_margen_top_titulo(titulo):
+    """margin.t (px) para fig.update_layout(), calculado a partir de cuántas
+    líneas tiene el título completo (separadas por '<br>'). Un margin.t fijo
+    de 80px se queda corto si el título crece a varias líneas (ej. un
+    subtítulo con avisos de varias líneas) y el texto de más abajo se encima
+    con la leyenda (que vive justo debajo del margen, anclada en y=0.99).
+    80px ya cubría bien el caso de siempre (título + 1 línea de subtítulo),
+    así que el mínimo se deja igual para no mover nada en ese caso.
+
+    Extraído de generar_mapa_3d() para que cualquier módulo que arme su
+    propio fig.update_layout() en vez de pasar por esta función (ej.
+    validacion_hidrologica.generar_mapa_3d_validacion(), que construye su
+    propio go.Figure porque colorea puntos verde/rojo con una lógica que no
+    encaja en construir_anillos_visuales_3d()) tenga el mismo cálculo, en
+    vez de reimplementarlo aparte y arriesgar que las dos copias diverjan.
+
+    COEFICIENTE AJUSTADO (18 -> 23px/línea, +45 -> +50 de base): probado con
+    un título real de 5 líneas (validacion_hidrologica, con la leyenda de 3
+    elementos verde/rojo/azul) -- con el coeficiente viejo (18) el margen
+    calculado (135px) todavía dejaba la última línea encimada con la
+    leyenda en la captura de prueba; con 23px/línea (165px para 5 líneas) el
+    espacio quedó limpio. Al ser un aumento estrictamente mayor en todos los
+    casos, no puede reintroducir un choque que ya no ocurría con el
+    coeficiente viejo (más margen nunca lo empeora) -- solo se verificó
+    explícitamente que el caso por default (título de 1 línea, sin
+    subtítulo) sigue devolviendo 80 igual que antes."""
+    n_lineas_titulo = titulo.count("<br>") + 1
+    return max(80, 50 + n_lineas_titulo * 23)
+
+
+def generar_mapa_3d(hidrologia, id_proyecto, html_path, subtitulo=None, utm_crs=None, titulo_base=None,
+                     capas_extra=None, devolver_fig=False):
     """Genera el HTML interactivo con Plotly a partir del resultado de
     calcular_hidrologia_d8(). Import de plotly aquí mismo, mismo criterio
     que con pysheds. `subtitulo` es opcional y agnóstico de su origen (por
@@ -252,10 +289,39 @@ def generar_mapa_3d(hidrologia, id_proyecto, html_path, subtitulo=None, utm_crs=
     módulo no sabe ni le importa de dónde viene el texto, solo lo agrega
     como segunda línea del título.
 
+    `titulo_base`: opcional -- reemplaza el título por default ("Modelo
+    Hidrológico D8 por zonas..."), que solo describe con precisión la
+    salida de core/cuenca_completa.py y core/validacion_hidrologica.py.
+    Los demás llamadores (deforestacion.py, carbono.py,
+    validacion_incendios.py) reusan este mismo layout de terreno pero para
+    otra cosa -- deben pasar su propio titulo_base para que el mapa diga lo
+    que realmente muestra en vez de heredar el título de hidrología.
+
+    `capas_extra`: lista opcional de trazos go.Scatter3d/go.Mesh3d ya
+    construidos (por ejemplo construir_capa_deforestacion_3d() en
+    deforestacion.py) que se agregan al mismo Figure, sobre el mismo
+    terreno. NOTA: este parámetro faltaba en esta función aunque
+    deforestacion.py ya lo pasaba (ver su docstring) -- sin él,
+    generar_mapa_3d_deforestacion() truena con TypeError antes de escribir
+    el HTML. Si ya tienes localmente una versión de este archivo que sí
+    acepta capas_extra, ese es el original real y este parche es
+    redundante -- pero como esa versión no está en el repo de GitHub que
+    revisé, la agrego aquí para que el código publicado sea consistente
+    con lo que deforestacion.py espera.
+
     `utm_crs`: si se da, se calcula lat/lon real por punto y se muestra en
     el hover (además de los km locales) -- así se puede ubicar cualquier
     punto del mapa de inmediato (copiar/pegar a Google Maps), sin tener
-    que traducir manualmente coordenadas locales."""
+    que traducir manualmente coordenadas locales.
+
+    `devolver_fig`: default False (comportamiento de siempre -- escribe
+    html_path con fig.write_html() y devuelve esa ruta). Si True, NO
+    escribe ningún archivo aquí -- devuelve el objeto go.Figure tal cual,
+    para que el llamador lo envuelva en su propio HTML (ej.
+    core/carbono.py, que arma tarjetas de CO2e legibles alrededor del
+    mapa 3D en vez de meter esos números en el título de Plotly, donde se
+    pierden -- ver construir_capas_carbono_3d() y su llamador). No cambia
+    NADA de la figura en sí, solo quién la escribe a disco."""
     import plotly.graph_objects as go
 
     Z_smooth = hidrologia["Z_smooth"]
@@ -280,11 +346,17 @@ def generar_mapa_3d(hidrologia, id_proyecto, html_path, subtitulo=None, utm_crs=
         customdata_superficie = np.dstack([Z_raw, lat_grid, lon_grid])
         fig.add_trace(go.Surface(
             z=Z_smooth, x=X, y=Y, colorscale="Earth", connectgaps=False, name="Terreno 3D",
-            customdata=customdata_superficie,
+            customdata=customdata_superficie, showscale=False,
             hovertemplate="Altitud: %{customdata[0]:.0f} msnm<br>Lat: %{customdata[1]:.5f}<br>Lon: %{customdata[2]:.5f}<extra></extra>",
         ))
     else:
-        fig.add_trace(go.Surface(z=Z_smooth, x=X, y=Y, colorscale="Earth", connectgaps=False, name="Terreno 3D"))
+        fig.add_trace(go.Surface(z=Z_smooth, x=X, y=Y, colorscale="Earth", connectgaps=False, name="Terreno 3D",
+                                  showscale=False))
+    # showscale=False: la altitud ya se lee en el eje Z y en el hover: un
+    # colorbar de "Earth" aquí solo compite por espacio con la leyenda y con
+    # el colorbar real que sí aporta información nueva (año de pérdida en
+    # deforestacion.py, CO2e en carbono.py, etc.) -- antes chocaban los dos
+    # colorbars por default en la misma esquina y la leyenda encima.
 
     colores_zona = {"nucleo": "red", "buffer_500m": "orange", "buffer_1000m": "gold"}
     river_y, river_x = np.where(stream_mask)
@@ -355,19 +427,99 @@ def generar_mapa_3d(hidrologia, id_proyecto, html_path, subtitulo=None, utm_crs=
             name=f"Punto más alto real ({etiqueta})",
         ))
 
-    titulo = (f"Modelo Hidrológico D8 por zonas - {id_proyecto} "
-              f"(núcleo=rojo, buffer 500m=naranja, buffer 1000m=dorado)")
+    # Capas del llamador (ej. la mancha de deforestación por año de
+    # deforestacion.py) -- se agregan tal cual, ya vienen armadas con su
+    # propio color/colorbar/hover.
+    for capa in (capas_extra or []):
+        if capa is not None:
+            fig.add_trace(capa)
+
+    titulo = titulo_base or (
+        f"Modelo Hidrológico D8 por zonas - {id_proyecto} "
+        f"(núcleo=rojo, buffer 500m=naranja, buffer 1000m=dorado)"
+    )
     if subtitulo:
         titulo += f"<br><sub>{subtitulo}</sub>"
+
+    margin_t = calcular_margen_top_titulo(titulo)
 
     fig.update_layout(
         title=titulo,
         scene=dict(xaxis_title="Este [km]", yaxis_title="Norte [km]", zaxis_title="Altitud [msnm]",
-                   aspectmode="manual", aspectratio=dict(x=1, y=1, z=0.7)),
+                   aspectmode="manual", aspectratio=dict(x=1, y=1, z=0.7),
+                   # Cámara de arranque explícita en vez del default de Plotly
+                   # (eye 1.25/1.25/1.25) -- ese default, combinado con el
+                   # aspectratio z=0.7 de sitios alargados (corredores,
+                   # cuencas), a veces deja el relieve casi de canto. Este
+                   # ángulo 3/4 elevado es el que en la práctica se ve bien
+                   # en núcleo+buffers de 500-1000m.
+                   camera=dict(eye=dict(x=1.35, y=-1.35, z=0.8), center=dict(x=0, y=0, z=-0.05))),
+        # Leyenda anclada arriba a la izquierda, lejos de cualquier colorbar
+        # (que siempre vive del lado derecho) -- antes, sin posición fija,
+        # Plotly la mandaba a la esquina superior derecha por default, justo
+        # encima de los colorbars.
+        legend=dict(x=0.01, y=0.99, bgcolor="rgba(255,255,255,0.75)"),
+        margin=dict(l=10, r=170, t=margin_t, b=10),
         autosize=True,
     )
+    if devolver_fig:
+        return fig
     fig.write_html(html_path)
     return html_path
+
+
+def construir_anillos_visuales_3d(hidrologia, hover_por_zona=None, colores_zona=None):
+    """Arma capas_extra (go.Scatter3d) con el borde visual de cada zona
+    (núcleo/buffer_.../...), dibujado como puntos pequeños draped sobre el
+    terreno -- mismo estilo que 'Cauce en <zona>' de este mismo módulo.
+    Extraído de core/carbono.py (donde nació para el reto de "que cada
+    anillo se vea marcado en el modelo") para que cualquier módulo que
+    necesite marcar los anillos sobre el 3D lo reuse -- core/carbono.py
+    (CO2e almacenado) y core/carbono_perdida.py (CO2e liberado) YA lo
+    hacen, y el siguiente módulo que lo necesite no tiene que reinventar
+    la detección de bordes.
+
+    Esto SIGUE respetando la regla de oro del módulo (arriba): no calcula
+    ningún dato de biomasa/carbono/GEE, solo dibuja bordes a partir de
+    'zona_de_pixel' (que ya es de este módulo) y muestra el texto de hover
+    que el llamador le pase ya armado -- geomatica.py sigue sin saber qué
+    dice ese texto ni de dónde salió.
+
+    hover_por_zona: dict opcional {etiqueta_zona: texto_hover} -- si una
+    zona no aparece aquí, su hover es solo 'Límite de <zona>'.
+    colores_zona: dict opcional {etiqueta_zona: color} -- default
+    {"nucleo": "red", "buffer_500m": "orange", "buffer_1000m": "gold"},
+    mismo convenio de colores ya usado en todo el proyecto."""
+    import plotly.graph_objects as go
+    from scipy.ndimage import binary_erosion
+
+    colores_zona = colores_zona or {"nucleo": "red", "buffer_500m": "orange", "buffer_1000m": "gold"}
+    hover_por_zona = hover_por_zona or {}
+
+    zona_de_pixel = hidrologia["zona_de_pixel"]
+    Z_smooth = hidrologia["Z_smooth"]
+    rows, cols = zona_de_pixel.shape
+    pw_v, ph_v = hidrologia["pw_v"], hidrologia["ph_v"]
+    X, Y = np.meshgrid(np.arange(cols) * pw_v / 1000.0, np.flipud(np.arange(rows) * ph_v / 1000.0))
+    valido = ~np.isnan(Z_smooth)
+
+    capas = []
+    for etiqueta, color in colores_zona.items():
+        mask_zona = (zona_de_pixel == etiqueta) & valido
+        if not np.any(mask_zona):
+            continue
+        erosionado = binary_erosion(mask_zona, border_value=0)
+        borde = mask_zona & ~erosionado
+        by, bx = np.where(borde)
+        if len(bx) == 0:
+            continue
+        hover_txt = hover_por_zona.get(etiqueta, f"Límite de {etiqueta}")
+        capas.append(go.Scatter3d(
+            x=X[by, bx], y=Y[by, bx], z=Z_smooth[by, bx] + 8,
+            mode="markers", marker=dict(size=2.2, color=color, opacity=0.9),
+            name=f"Límite de {etiqueta}", hovertext=hover_txt, hoverinfo="text",
+        ))
+    return capas
 
 
 def cargar_dem_utm(geojson_path, zonas_m, carpeta_srtm=None):
