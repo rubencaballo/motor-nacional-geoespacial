@@ -314,7 +314,7 @@ CLICK_ABRE_GOOGLE_EARTH_JS = """
         var lon = cd[cd.length - 1];
         if (typeof lat !== 'number' || typeof lon !== 'number') return;
         var url = 'https://earth.google.com/web/@' + lat.toFixed(6) + ',' + lon.toFixed(6)
-                 + ',0a,600d,35y,0h,0t,0r';
+                 + ',0a,150d,35y,0h,0t,0r';
         window.open(url, '_blank');
     });
 })();
