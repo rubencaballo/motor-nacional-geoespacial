@@ -563,8 +563,14 @@ def _construir_html_carbono_con_tarjetas(fig, df_zonas_reales, id_proyecto, titu
     mapa) + el total + el mapa 3D debajo. Reemplaza el título/subtítulo
     largo de Plotly (donde los números "se perdían", feedback real del
     usuario) sin tocar geomatica.py ni ningún otro módulo que lo use --
-    esto es exclusivo de este mapa."""
-    from core import carbono_perdida, reportes_html
+    esto es exclusivo de este mapa. NOTA: este mapa arma su HTML con
+    fig.to_html() directo (para envolverlo en las tarjetas) en vez de
+    geomatica.generar_mapa_3d(..., html_path=...) -- por eso el clic ->
+    Google Earth (ver geomatica.CLICK_ABRE_GOOGLE_EARTH_JS) no llegaba
+    gratis desde ese único punto de inyección como en deforestacion/
+    incendios, y hay que pasarlo aquí a mano (mismo div_id="mapa3d" que
+    espera el script)."""
+    from core import carbono_perdida, geomatica, reportes_html
 
     # Hectáreas por anillo EXCLUSIVO (no acumuladas) -- mismo criterio que
     # el CO2e de cada tarjeta, para no mezclar una cifra acumulada con una
@@ -623,7 +629,8 @@ def _construir_html_carbono_con_tarjetas(fig, df_zonas_reales, id_proyecto, titu
         nombre_mostrado=f"Total (0-{buffer_max_m} m, anillos sumados)", area_ha=total_area, es_total=True,
     )
 
-    div_mapa = fig.to_html(full_html=False, include_plotlyjs=True, config={"displaylogo": False})
+    div_mapa = fig.to_html(full_html=False, include_plotlyjs=True, config={"displaylogo": False},
+                            div_id="mapa3d", post_script=geomatica.CLICK_ABRE_GOOGLE_EARTH_JS)
     subtitulo = (f"CO2e almacenado por zona -- anillo exclusivo, sí sumable entre tarjetas (dataset {anio_dataset}, "
                  f"ESA CCI Above-Ground Biomass{' + GEDI L4A' if incluir_gedi else ''})")
     nota_pie = ("Los anillos de colores sobre el modelo marcan el límite de cada zona (rojo=núcleo, "

@@ -634,8 +634,13 @@ def _construir_html_perdida_con_tarjetas(fig, df_balance, desglose_causa, zona_d
     pérdida' donde en realidad es 'sin dato'), simplemente no tienen
     tarjeta. Para que eso no se lea como un total completo por accidente,
     el título de la tarjeta TOTAL y la nota al pie avisan explícitamente
-    cuáles faltan."""
-    from core import reportes_html
+    cuáles faltan.
+
+    Igual que en core/carbono.py: este mapa arma su HTML con fig.to_html()
+    directo (para envolverlo en las tarjetas), así que el clic -> Google
+    Earth (geomatica.CLICK_ABRE_GOOGLE_EARTH_JS) no llega gratis desde
+    geomatica.generar_mapa_3d() y hay que pasarlo aquí a mano."""
+    from core import geomatica, reportes_html
 
     tarjetas = []
     total_ha_perdida = 0.0
@@ -697,7 +702,8 @@ def _construir_html_perdida_con_tarjetas(fig, df_balance, desglose_causa, zona_d
         area_ha=total_ha_perdida, es_total=True,
     )
 
-    div_mapa = fig.to_html(full_html=False, include_plotlyjs=True, config={"displaylogo": False})
+    div_mapa = fig.to_html(full_html=False, include_plotlyjs=True, config={"displaylogo": False},
+                            div_id="mapa3d", post_script=geomatica.CLICK_ABRE_GOOGLE_EARTH_JS)
     subtitulo = (f"CO2e liberado a la atmósfera por deforestación confirmada -- anillo exclusivo, sí sumable "
                  f"entre tarjetas (Hansen {etiqueta_periodo}, densidad de carbono ESA CCI Above-Ground Biomass"
                  f"{' + GEDI L4A' if incluir_gedi else ''})")

@@ -439,7 +439,7 @@ def generar_mapa_3d_corredor(cuenca, geom_utm_origen, id_corredor, html_path, ut
     solo trazo dodgerblue sin comparar contra INEGI (útil para --demo, donde
     no hay ningún shapefile de INEGI que cargar)."""
     import plotly.graph_objects as go
-    from core.geomatica import calcular_grid_latlon
+    from core.geomatica import calcular_grid_latlon, CLICK_ABRE_GOOGLE_EARTH_JS
 
     Z_raw = cuenca["Z_raw"]
     catchment_mask = cuenca["catchment_mask"]
@@ -602,7 +602,7 @@ def generar_mapa_3d_corredor(cuenca, geom_utm_origen, id_corredor, html_path, ut
         margin=dict(l=10, r=10, t=90, b=10),
         autosize=True,
     )
-    fig.write_html(html_path)
+    fig.write_html(html_path, div_id="mapa3d", post_script=CLICK_ABRE_GOOGLE_EARTH_JS)
     return html_path
 
 

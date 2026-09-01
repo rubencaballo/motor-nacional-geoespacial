@@ -438,7 +438,7 @@ def generar_mapa_3d_validacion(geojson_path, shapefile_inegi_path, id_proyecto, 
         autosize=True,
     )
     html_path = os.path.join(carpeta_salida, f"{id_proyecto.lower()}_3d_validacion_p{int(percentil_cauce or cfg.PERCENTIL_CAUCE_HIDROLOGIA)}.html")
-    fig.write_html(html_path)
+    fig.write_html(html_path, div_id="mapa3d", post_script=geomatica.CLICK_ABRE_GOOGLE_EARTH_JS)
     log(f"Mapa 3D de validación: {html_path}")
     return html_path
 
