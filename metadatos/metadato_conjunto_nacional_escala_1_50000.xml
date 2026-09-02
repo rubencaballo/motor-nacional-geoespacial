@@ -1,0 +1,687 @@
+<?xml version = "1.0" encoding = "ISO-8859-1"?>
+<Metadata>
+<MD_DataIdentification>
+<title>Conjunto nacional de información topográfica a escala 1:50 000, 2025. (Recorte de información)</title>
+<purpose>La información contenida en el Conjunto nacional de información topográfica a escala 1:50 000, 2025, está diseñada y elaborada para proporcionar a las Unidades del Estado, la academia y a la sociedad en general datos cartográficos detallados del territorio nacional a esta escala. Se actualizó a partir del Conjunto Nacional de Información Topográfica a Escala 1:50 000 publicado en el año 2024. Esta información aporta un producto para múltiples usos como los siguientes: base para la elaboración de mapas especializados, realizar análisis y estudios del territorio, gestionar y distribuir recursos, realizar análisis visuales de infraestructura y apoyar en la prevención de desastres.
+
+Se considera información geográfica básica a partir de la cual se pueden desarrollar, mediante procesos de generalización, otros productos cartográficos temáticos (como los relacionados con recursos naturales) a la misma escala o derivadas, como las cartas topográficas 1:250 000 y 1:1 000 000. Este producto se genera para satisfacer las necesidades de información geoespacial de los usuarios internos y externos del Sistema Nacional de Información Estadística y Geográfica (SNIEG).</purpose>
+<abstract>El Conjunto nacional de información topográfica a escala 1:50 000, 2025, es la representación sistemática de datos georreferenciados sobre diversos elementos del espacio geográfico que conforman el territorio nacional, como relieve (curvas de nivel), hidrografía, vías de comunicación, localidades, entre otros. Estos elementos corresponden a los objetos del Diccionario de datos topográficos Escala 1:50 000 (2020), versión 2022, y están representados digitalmente mediante componentes geométricos vectoriales (puntos, líneas y áreas) y descriptivos (atributos del dato), que proporcionan información detallada sobre los tipos de elementos del espacio geográfico. Se incluyen los topónimos o nombres geográficos como atributos asociados a los objetos espaciales que por su naturaleza los requieren.</abstract>
+<MD_DataIdentification_language>ES - Español.</MD_DataIdentification_language>
+<topicCategory>
+<principalTopic>  5. Medio ambiente: Recursos medio ambientales, protección y conservación. </principalTopic>
+<principalTopic>  8. Base de imágenes de mapas de la cobertura de la tierra: Mapas base. </principalTopic>
+<principalTopic>11. Localización: Información posicional y servicios.  </principalTopic>
+<principalTopic>12. Planeamiento catastral: Información utilizada de acciones apropiadas para el uso futuro de la tierra. </principalTopic>
+<principalTopic>14. Estructura: Construcciones hechas por el hombre. </principalTopic>
+<principalTopic>15. Transportación: Medios y ayudas para transportar personas o mercancías. </principalTopic>
+<principalTopic>16. Comunicación de servicios: Energía, agua y sistemas de desecho, infraestructura de comunicaciones y servicios. </principalTopic>
+<groupCategory>2. Grupo de datos de nombres geográficos: Subdivisión de la Infraestructura de Datos Espaciales de México que corresponde a los nombres propios de rasgos naturales y culturales con una identidad reconocible en los ámbitos continental, insular y submarino.</groupCategory>
+<groupCategory>4. Grupo de datos topográficos: Subdivisión de la Infraestructura de Datos Espaciales de México que contiene elementos que caracterizan parte o toda la superficie  terrestre, constituidos por datos referidos a los componentes físicos del paisaje y de los correspondientes a objetos de infraestructura humana. Particularizan un terreno en su configuración superficial, permitiendo la identificación de la disposición y forma de sus partes y lo distinguen de otros semejantes.</groupCategory>
+<groupCategory>5. Grupo de datos de relieve continental, insular y submarino: Subdivisión de la Infraestructura de Datos Espaciales de México que a través de valores de distancias verticales con respecto a una superficie de referencia, representan la distribución de alturas y profundidades características de las formas del terreno. </groupCategory>
+<groupCategory>6. Grupo de datos de límites costeros, internacionales, estatales y municipales: Subdivisión de la Infraestructura de Datos Espaciales de México que representa las fronteras de los espacios territoriales contenedores de datos e información.</groupCategory>
+</topicCategory>
+<keyword>Acueducto.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Aeródromo civil.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Área pública.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Banco de material.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Bordo.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Camino.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Canal.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Carretera.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Cementerio.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Conducto.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Corriente de agua.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Corriente que desaparece.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Cuerpo de agua.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Curva de nivel.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Depósito de desechos.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Edificación.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Edificación cultural.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Elemento insular.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Emisor de señales para navegación.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Enlace fluvial.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Entrada a cavidad subterránea.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Escuela.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Estación de abastecimiento de combustible.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Estación de ferrocarril.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Estación de telecomunicación.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Estación geodésica gravimétrica.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Estación geodésica horizontal.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Estación geodésica vertical o Banco de nivel.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Estanque.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Estructura elevada.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Fango.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Forma del relieve submarino.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Funicular / teleférico.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Granja.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Instalación aduanal.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Instalación de bombeo.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Instalación deportiva o recreativa.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Instalación diversa.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Instalación industrial.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Instalación portuaria.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Límite internacional.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Línea de costa.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Línea de transmisión.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Localidad.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Malpaís.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Manantial.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Manzana.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Mina.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Mojonera.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Muro de contención.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Pantano.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Pista de aviación.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Pista de carreras.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Planta de agua.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Planta generadora.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Plaza de cobro.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Pozo.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Presa.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Puente.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Punto acotado.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Rasgo arqueológico.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Referencia geográfica.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Salina.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Salto de agua.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Servicio médico.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Subestación eléctrica.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Tanque.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Terreno sujeto a inundación.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Túnel.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Vado.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Vía férrea.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Vialidad.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Zona arenosa.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Área de referencia natural.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Área de referencia cultural.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Forma litoral.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Rasgo hidrográfico.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Rasgo orográfico.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Servicio.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<keyword>Instalación.</keyword>
+<type>5. Tema: La palabra clave que identifica un tema o materia particular.</type>
+<thesaurusName>Ninguno.</thesaurusName>
+<edition>2025.</edition>
+<presentationForm>  5. Mapa digital: Mapa representado en formato raster o vector.</presentationForm>
+<CI_OnlineResource>
+<CI_OnlineResource_linkage>https://www.inegi.org.mx/temas/topografia/default.html#Descargas</CI_OnlineResource_linkage>
+<CI_OnlineResource_description>       </CI_OnlineResource_description>
+</CI_OnlineResource>
+<maintenanceAndUpdateFrequency>  7. Anualmente: Los datos se actualizan cada año.</maintenanceAndUpdateFrequency>
+<MD_DataIdentification_characterSet>  4. Utf8: Formato de Transferencia UCS de tamaño variable de 8-bit, basado en ISO/IEC 10646.</MD_DataIdentification_characterSet>
+<graphfilename> </graphfilename>
+<specuse>Uso 1 (externo): El Centro Nacional de Prevención de Desastres (CENAPRED) utiliza la información topográfica escala 1:50 000 en la generación y actualización del Atlas Nacional de Riesgos (ANR), al llevar a cabo estudios y análisis basándose en la información de las características del relieve, ubicación de localidades, ríos, lagos, lagunas, volcanes, presas, etc., que este producto le proporciona; con estos datos obtiene diagnósticos y estadísticas de diferentes variables, como sismicidad, vulcanismo, deslaves, inundaciones y otras que le permiten calcular consecuencias y crear medidas y procedimientos preventivos con el fin de generar mapas y metodologías para su integración en los Atlas que ofrece al Sistema Nacional de Protección Civil (SINAPROC); todo ello, encaminado a evitar la pérdida de vidas humanas, así como las afectaciones al patrimonio y al medio ambiente. Información obtenida de la página del SNIEG, dentro del apartado de Información Topográfica a escala 1:50,000 y sus actualizaciones, https://www.snieg.mx/ds-topografica-1-50000/; y complementada con información del sitio de internet oficial https://www.gob.mx/cenapred, con fecha 15 de octubre de 2024.
+
+Uso 2 (externo): El Fondo Nacional del Fomento al Turismo (FONATUR) utiliza la información topográfica escala 1:50 000 en la planeación y desarrollo de proyectos turísticos de talla internacional; ejemplo de ello, es el Centro integralmente planeado de Ixtapa, para el cual se utilizaron, además de la información contenida en este producto, mapas hidrográficos, de geomorfología y de pendientes, entre otros. Con toda esta información cartográfica se realizan análisis espaciales encaminados a revisar, estudiar y proponer proyectos atractivos y con las mejores opciones. Información obtenida de la página del SNIEG, dentro del apartado de Información Topográfica a escala 1:50,000 y sus actualizaciones, https://www.snieg.mx/ds-topografica-1-50000/; y complementada con información del sitio de internet oficial de https://www.gob.mx/fonatur, con fecha 15 de octubre de 2024.
+
+Uso 3 (externo): La Secretaría de Medio Ambiente y Recursos Naturales (SEMARNAT) utiliza la información topográfica escala 1:50 000 en la planeación y desarrollo de proyectos ambientales. Para este uso se toman las curvas de nivel que, sumadas a modelos de sombreados regionales, sirven de insumo para la aplicación del modelo de dispersión AERMOD y crear la simulación de la dispersión de los contaminantes en el aire y su deposición. Información obtenida de la página del SNIEG, dentro del apartado de Información Topográfica a escala 1:50,000 y sus actualizaciones, https://www.snieg.mx/ds-topografica-1-50000/; y complementada con información del sitio de internet oficial https://www.gob.mx/semarnat, con fecha 15 de octubre de 2024.
+
+Uso 4 (externo): La Comisión de Ecología y Desarrollo Sustentable del Estado de Sonora (CEDES) utiliza la información topográfica escala 1:50 000 en la planeación y desarrollo de proyectos ambientales. Utiliza, además, del cúmulo de información contenida en este producto, los modelos de sombreados regionales, los mapas hidrográficos, entre otros; con la suma de esta información vectorial, se lleva a cabo el análisis para el estudio de las características de la zona de interés con el fin de crear herramientas e instrumentos que propicien acciones ecológicas para beneficio del Estado. Información obtenida de la página del SNIEG, dentro del apartado de Información Topográfica a escala 1:50,000 y sus actualizaciones, https://www.snieg.mx/ds-topografica-1-50000/; y complementada con información del sitio de internet oficial https://cedes.sonora.gob.mx, con fecha 15 de octubre de 2024.
+
+Uso 5 (externo): La Secretaría de Infraestructura, Comunicaciones y Transportes (SICT) utiliza la información topográfica a escala 1:50 000, específicamente la información de las curvas de nivel, para la planeación y desarrollo de diversas obras de ingeniería de comunicaciones terrestres, por ejemplo: la modernización de la red carretera del país y la creación de puentes de gran envergadura; además, se utiliza información de hidrología superficial y de rasgos orográficos. Información obtenida de la página del SNIEG, dentro del apartado de Información Topográfica a escala 1:50,000 y sus actualizaciones, https://www.snieg.mx/ds-topografica-1-50000/; y complementada con información del sitio de internet oficial https://www.gob.mx/sct, con fecha 15 de octubre de 2024.
+
+Uso 6 (externo): El Instituto del Agua del Estado de Aguascalientes (INAGUA) utiliza la información topográfica escala 1:50 000 en la planeación y desarrollo de proyectos pluviales. Con los datos de hidrología y relieve, se realizan estudios y análisis de variables como sustentabilidad, aprovechamiento, distribución y uso eficiente del agua. El objetivo es crear un modelo integral para el impulso y desarrollo de proyectos de investigación permanentes que garanticen los instrumentos necesarios para la ubicación y manejo estratégico de los acuíferos con el fin de apoyar el desarrollo urbano de la entidad y fortalecer el bienestar de los ciudadanos. Información obtenida de la página del SNIEG, dentro del apartado de Información Topográfica a escala 1:50,000 y sus actualizaciones, https://www.snieg.mx/ds-topografica-1-50000/; y complementada con información del sitio de internet oficial https://www.aguascalientes.gob.mx/inagua/, con fecha 15 de octubre de 2024.
+
+Uso 7 (externo): La Secretaría de Bienestar utiliza la información topográfica escala 1:50 000 como insumo para visualizar en el Sistema de Información Social Georreferenciada (SISGE) las capas vectoriales de vías de comunicación (brechas, veredas, carreteras de terracería, carreteras estatales libres y carreteras federales libres), cuerpos de agua, infraestructura, entre otras; lo cual permite al usuario conocer los rasgos geográficos de una cierta área o región, o realizar análisis de influencia sobre los elementos geográficos que contenga el mapa base. Asimismo, la información topográfica es de gran utilidad para la elaboración de mapas digitales e impresos. Información obtenida de consulta pública del SNIEG realizada del 12 de junio al 7 de julio de 2023; y complementada con información del sitio de internet oficial https://sisge.bienestar.gob.mx/sisge, con fecha 15 de octubre de 2024.
+
+Uso 8 (externo): Petróleos Mexicanos (PEMEX) utiliza la información topográfica a escala 1:50 000 para llevar a cabo estudios de referencia sobre un área determinada. Por medio de un sistema de información geográfico, realiza un análisis de la topografía del suelo que permite detectar instalaciones como ductos subterráneos y drenajes, además de otros elementos como afloramientos rocosos; con base en ello, genera, de manera inequívoca, los planos que contienen la ubicación específica de la zona donde se deberá realizar el levantamiento para la construcción o ampliación de ductos que transportarán el gas natural y el gas licuado. Información obtenida de la página del SNIEG, dentro del apartado de Información Topográfica a escala 1:50,000 y sus actualizaciones, https://www.snieg.mx/ds-topografica-1-50000/; y complementada con información del sitio de internet oficial https://www.pemex.com, con fecha 15 de octubre de 2024.
+
+Uso 9 (externo): Agencia Reguladora del Trasporte Ferroviario (ARTF) utiliza la Información Topográfica a escala 1:50 000 para generar el modelo de la Red Ferroviaria Nacional, el cual facilita la investigación y el análisis de rutas para la planificación e implementación de proyectos de transporte de carga y pasajeros que coadyuven al crecimiento local, regional y nacional, así como a la organización integral del territorio. Información obtenida de la página del SNIEG, dentro del apartado de Red Ferroviaria Nacional, https://www.snieg.mx/red-ferroviaria-nacional; y complementada con información del sitio de internet oficial https://www.gob.mx/artf, con fecha 17 de octubre de 2024.
+
+Uso 10 (externo): La Comisión Nacional del Agua (CONAGUA) utiliza la información topográfica a escala 1:50 000 con el fin de realizar estudios potamológicos completos para el diseño de obras fluviales, así como para el estudio de las probabilidades de desvío de causes o canales, creación de bordos y/o muros longitudinales etc.; todo ello, con el fin de prevenir inundaciones. Información obtenida de la página del SNIEG, dentro del apartado de Información Topográfica a escala 1:50,000 y sus actualizaciones, https://www.snieg.mx/ds-topografica-1-50000/; y complementada con información del sitio de internet oficial https://www.gob.mx/conagua, con fecha 15 de octubre de 2024.
+
+Uso 11 (externo): El área de cartografía del Instituto Nacional Electoral (INE) utiliza, desde hace años, la información topográfica a escala 1:50 000 en actividades que son fundamentales para los trabajos operativos, que consisten en elaborar la cartografía electoral, en la cual se representan los niveles del Marco Geográfico Electoral (MGE): entidad, distrito, municipio, sección, localidad y manzana. Estos datos conforman la identificación electoral del ciudadano, reflejada en la credencial de elector (excepto la clave de distrito y manzana). Información obtenida de la página del SNIEG, dentro del apartado de Información Topográfica a escala 1:50,000 y sus actualizaciones, https://www.snieg.mx/ds-topografica-1-50000/; y complementada con información del sitio de internet oficial https://ine.mx, con fecha del 23 de octubre de 2024. 
+
+Uso 12 (externo): La Comisión Federal de Electricidad (CFE) utiliza la información topográfica a escala 1:50 000 para analizar y ubicar espacialmente los posibles lugares donde sea estratégico construir, mejorar o reubicar infraestructura e instalaciones, al considerar un ambiente distribuido, compartido e interoperable; para ello, hace uso de tecnologías de la información geográfica que posibilitan la estandarización. Asimismo, utiliza como base la información topográfica a escala 1:50 000 para implementar un Sistema de Información Geográfica con una base de datos común que permita la gestión de la infraestructura para la planeación, construcción, operación y atención a clientes, con capacidad de manejo geoespacial y cumpliendo con los estándares de conectividad e interoperabilidad de instituciones nacionales e internacionales. Información obtenida de la página del SNIEG, dentro del apartado de Información Topográfica a escala 1:50,000 y sus actualizaciones, https://www.snieg.mx/ds-topografica-1-50000/; y complementada con información del sitio de internet oficial https://www.cfe.mx, con fecha 15 de octubre de 2024.
+
+Uso 13 (externo): Instituciones educativas de nivel profesional, utilizan la información topográfica a escala 1:50 000 como mapa base para realizar estudios e investigaciones diversas; agregan al mapa base información espacial de diversas variables como geomorfología, uso del suelo, hidrografía, geografía urbana, diversificación de cultivos, densidad de caminos, etc., para eventualmente aplicar diferentes técnicas de análisis espacial; con ello, se obtienen mapas temáticos especializados para diversos usuarios con intereses especiales.
+
+Uso 14 (interno): Diferentes áreas productoras de la Unidad de Geografía y Medio Ambiente (UGMA) utilizan la información topográfica a escala 1:50 000 como cartografía base y como referencia espacial gracias a su calidad y riqueza de elementos integrados. Toman algunas o todas las capas vectoriales dentro de una plataforma de sistema de información geográfica y juntamente con otros datos de información temática, generan diferentes productos y aplicaciones espaciales.</specuse>
+</MD_DataIdentification>
+<CI_Date>
+<Dates_Events>
+<date>2026-03-24</date>
+<dateType>2. Publicación: Indicador de la fecha que especifica cuando el recurso fue publicado.</dateType>
+</Dates_Events>
+<Ad_Date>
+<date_creation>2007-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Información Topográfica a escala 1:50 000 Serie II.</inpname>
+<date_creation>2009-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Cuerpos de Agua Escala 1:50 000.</inpname>
+<date_creation>2017-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Carta Topográfica escala 1:20 000.</inpname>
+<date_creation>2018-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Continuo Nacional de las 5 Capas Actualizadas de Información Topográfica a Escala 1:50 000 Serie III 2013-2018.</inpname>
+<date_creation>2020-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Recopilación de Información de los Cementerios Públicos en las Zonas Metropolitanas del País 2020.</inpname>
+<date_creation>2021-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Infraestructura de Datos Espaciales Abiertos.</inpname>
+<date_creation>2022-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Agencia Nacional de Aduanas de México.</inpname>
+<date_creation>2023-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Conjunto Nacional de Datos Topográficos a escala 1:250 000.</inpname>
+<date_creation>2023-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Datos abiertos de Promtel.</inpname>
+<date_creation>2023-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Directorio Estadístico Nacional de Unidades Económicas.</inpname>
+<date_creation>2023-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Información sobre la gestión municipal de los servicios de agua y saneamiento.</inpname>
+<date_creation>2023-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Mapa de Hidrocarburos.</inpname>
+<date_creation>2023-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Red Ferroviaria Nacional.</inpname>
+<date_creation>2024-12-13</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Conjunto nacional de información topográfica a escala 1:50 000, 2024.</inpname>
+<date_creation>2024-12-18</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Continuo Nacional de Curvas de Nivel.</inpname>
+<date_creation>2024-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Datos abiertos de México-Agencia Federal de Aviación Civil.</inpname>
+<date_creation>2024-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>OpenStreetMap.</inpname>
+<date_creation>2024-12-31</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Red Nacional de Caminos.</inpname>
+<date_creation>2025-02-01</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Catálogo de Claves Únicas de Establecimientos de Salud.</inpname>
+<date_creation>2025-08-20</date_creation>
+<date_begin></date_begin>
+<date_end></date_end>
+<inpname>Red Geodésica Nacional Pasiva.</inpname>
+</Ad_Date>
+</CI_Date>
+<CI_ResponsibleParty>
+<CI_ResponsibleParty_individualName>Mtro. J. Armando Aguiar Rodríguez. </CI_ResponsibleParty_individualName>
+<CI_ResponsibleParty_organisationName>Instituto Nacional de Estadística y Geografía - INEGI. </CI_ResponsibleParty_organisationName>
+<CI_ResponsibleParty_positionName>Director de Servicios de Información. </CI_ResponsibleParty_positionName>
+<CI_ResponsibleParty_voice>449 910 5300 Extensiones 31 5486 y 31 5920. Lada 800 111 4634.</CI_ResponsibleParty_voice>
+<CI_ResponsibleParty_facsimile></CI_ResponsibleParty_facsimile>
+<CI_ResponsibleParty_deliveryPoint>Avenida Héroe de Nacozari Sur 2301, Fraccionamiento Jardines del Parque, 20276, Aguascalientes, Aguascalientes, Aguascalientes, entre Calle INEGI, Avenida del Lago y Avenida Paseo de las Garzas. </CI_ResponsibleParty_deliveryPoint>
+<CI_ResponsibleParty_city>Aguascalientes.</CI_ResponsibleParty_city>
+<CI_ResponsibleParty_administrativeArea>Aguascalientes.</CI_ResponsibleParty_administrativeArea>
+<CI_ResponsibleParty_postalCode>20276</CI_ResponsibleParty_postalCode>
+<CI_ResponsibleParty_country>México.</CI_ResponsibleParty_country>
+<CI_ResponsibleParty_electronicMailAddress>atencion.usuarios@inegi.org.mx</CI_ResponsibleParty_electronicMailAddress>
+<CI_ResponsibleParty_linkage>https://www.inegi.org.mx/ </CI_ResponsibleParty_linkage>
+<CI_ResponsibleParty_role>  5. Distribuidor: Parte que distribuye el recurso.</CI_ResponsibleParty_role>
+</CI_ResponsibleParty>
+<geographicElement>
+<EX_GeographicBoundingBox>
+<westBoundLongitude>-98.617441</westBoundLongitude>
+<eastBoundLongitude>-93.687273</eastBoundLongitude>
+<southBoundLatitude>17.169231</southBoundLatitude>
+<northBoundLatitude>22.413656</northBoundLatitude>
+</EX_GeographicBoundingBox>
+<spatialRepresentationType>1. Vector: Los datos vectoriales se utilizan para representar datos espaciales.</spatialRepresentationType>
+</geographicElement>
+<MD_ReferenceSystem>
+<ReferenceHorizontalSystem>
+<geograph>
+<latres>0.00000001</latres>
+<longres>0.00000001</longres>
+<geogunit>Grados decimales.</geogunit>
+</geograph>
+<planar>
+<mapprojn>
+<lambertc>
+<lambertc_stdparll></lambertc_stdparll>
+<lambertc_longcm></lambertc_longcm>
+<lambertc_latprjo></lambertc_latprjo>
+<lambertc_feast></lambertc_feast>
+<lambertc_fnorth></lambertc_fnorth>
+</lambertc>
+<mercatort>
+<mercatort_sfctrmer></mercatort_sfctrmer>
+<mercatort_longcm></mercatort_longcm>
+<mercatort_latprjo></mercatort_latprjo>
+<mercatort_feast></mercatort_feast>
+<mercatort_fnorth></mercatort_fnorth>
+</mercatort>
+<mercator>
+<mercator_stdparll></mercator_stdparll>
+<mercator_sfec></mercator_sfec>
+<mercator_longcm></mercator_longcm>
+<mercator_feast></mercator_feast>
+<mercator_fnorth></mercator_fnorth>
+</mercator>
+<tme>
+<tme_sfctrmer></tme_sfctrmer>
+<tme_longcm></tme_longcm>
+<tme_latprjo></tme_latprjo>
+<tme_feast></tme_feast>
+<tme_fnorth></tme_fnorth>
+</tme>
+<anoth_proj_def></anoth_proj_def>
+</mapprojn>
+<gridcoordinatessystem>
+<utm>
+<utm_zone></utm_zone>
+<utm_sfctrmer></utm_sfctrmer>
+<utm_longcm></utm_longcm>
+<utm_latprjo></utm_latprjo>
+<utm_feast></utm_feast>
+<utm_fnorth></utm_fnorth>
+</utm>
+</gridcoordinatessystem>
+<local_planar>
+<local_planar_desc></local_planar_desc>
+<local_planar_geo_inf></local_planar_geo_inf>
+</local_planar>
+<planci>
+<plance></plance>
+<coord_repres>
+<absres></absres>
+<ordres></ordres>
+</coord_repres>
+<distance_and_bearing_repres>
+<distance_res></distance_res>
+<bearing_res></bearing_res>
+<bearing_uni></bearing_uni>
+<ref_bearing_dir></ref_bearing_dir>
+<ref_bearing_mer></ref_bearing_mer>
+</distance_and_bearing_repres>
+<plandu></plandu>
+</planci>
+</planar>
+<local_coordinates>
+<local_desc></local_desc>
+<local_geo_inf></local_geo_inf>
+</local_coordinates>
+<geodetic>
+<horizdn>ITRF08 época 2010.0.</horizdn>
+<ellips>Sistema Geodésico de Referencia de 1980 (GRS80).</ellips>
+<semiaxis>6378137.0</semiaxis>
+<denflat>298.2572221</denflat>
+</geodetic>
+</ReferenceHorizontalSystem>
+<ReferenceVerticalSystem>
+<altsys>
+<altdatum>Datum Vertical Norteamericano de 1988.</altdatum>
+<altres>15</altres>
+<altunits>Metros.</altunits>
+<altenc>Valores de atributo.</altenc>
+</altsys>
+<depthsys>
+<depthdn></depthdn>
+<depthres></depthres>
+<depthdu></depthdu>
+<depthem> </depthem>
+</depthsys>
+</ReferenceVerticalSystem>
+</MD_ReferenceSystem>
+<DQ_DataQuality>
+<DQ_Scope>
+<level>  5. Conjunto de datos espaciales: Información aplicada al conjunto de datos espaciales.</level>
+</DQ_Scope>
+<report>
+<DQ_Completeness>
+<DQ_Completeness_evalqualsubname>Omisión.
+<DQ_Completeness_nameOfMeasure>Validación de la información contenida en el Conjunto nacional.</DQ_Completeness_nameOfMeasure>
+<DQ_Completeness_measureDescription>Se realizó la validación de la información del Conjunto Nacional mediante procesos automatizados para identificar rasgos faltantes en comparación con insumos auxiliares de referencia. En los casos detectados, los elementos ausentes fueron incorporados para garantizar la completitud del conjunto de datos.</DQ_Completeness_measureDescription>
+<DQ_Completeness_result>
+<DQ_Completeness_DQ_QuantitativeResult>
+<DQ_Completeness_valueUnit>Porcentaje.</DQ_Completeness_valueUnit>
+<DQ_Completeness_value>Validación automática: El 0 % de los objetos validados se omitieron del Conjunto nacional.</DQ_Completeness_value>
+</DQ_Completeness_DQ_QuantitativeResult>
+</DQ_Completeness_result>
+</DQ_Completeness_evalqualsubname>
+</DQ_Completeness>
+<DQ_LogicConsistency>
+<DQ_LogicConsistency_evalqualsubname>Consistencia topológica.
+<DQ_LogicConsistency_nameOfMeasure>Revisión de la consistencia topológica.</DQ_LogicConsistency_nameOfMeasure>
+<DQ_LogicConsistency_measureDescription>Mediante procesos automatizados, se verificó la representación de los objetos para identificar inconsistencias como áreas mal cerradas, cruces entre objetos con geometría de línea, sobreposición de objetos con geometría de línea, sobreposición de objetos con geometría de área, vértices duplicados, objetos duplicados y objetos sin conexión, según lo especificado en el Diccionario de datos topográficos Escala 1:50 000 (2020), versión 2022.</DQ_LogicConsistency_measureDescription>
+<DQ_LogicConsistency_result>
+<DQ_LogicConsistency_DQ_QuantitativeResult>
+<DQ_LogicConsistency_valueUnit>Metros.</DQ_LogicConsistency_valueUnit>
+<DQ_LogicConsistency_value>Nivel de calidad de conformidad: se aplicaron tolerancias de error de 0.005 m ~ 2 m</DQ_LogicConsistency_value>
+</DQ_LogicConsistency_DQ_QuantitativeResult>
+</DQ_LogicConsistency_result>
+</DQ_LogicConsistency_evalqualsubname>
+<DQ_LogicConsistency_evalqualsubname>Consistencia de dominio.
+<DQ_LogicConsistency_nameOfMeasure>Validación de atributos contenidos en el Conjunto nacional.</DQ_LogicConsistency_nameOfMeasure>
+<DQ_LogicConsistency_measureDescription>Mediante procesos automatizados, se validó que los atributos de cada uno de los objetos espaciales se apegaran a las especificaciones establecidas en el Diccionario de datos topográficos Escala 1:50 000 (2020), versión 2022; en caso de no cumplirlas, se rectificó la información.</DQ_LogicConsistency_measureDescription>
+<DQ_LogicConsistency_result>
+<DQ_LogicConsistency_DQ_QuantitativeResult>
+<DQ_LogicConsistency_valueUnit>Porcentaje.</DQ_LogicConsistency_valueUnit>
+<DQ_LogicConsistency_value>Validación de atributos: 100 % de la información vectorial contenida en el Conjunto nacional.</DQ_LogicConsistency_value>
+</DQ_LogicConsistency_DQ_QuantitativeResult>
+</DQ_LogicConsistency_result>
+</DQ_LogicConsistency_evalqualsubname>
+</DQ_LogicConsistency>
+<PositionalAccuracy>
+<PositionalAccuracy_evalqualsubname>
+<PositionalAccuracy_nameOfMeasure></PositionalAccuracy_nameOfMeasure>
+<PositionalAccuracy_measureDescription></PositionalAccuracy_measureDescription>
+<PositionalAccuracy_result>
+<PositionalAccuracy_DQ_QuantitativeResult>
+<PositionalAccuracy_valueUnit></PositionalAccuracy_valueUnit>
+<PositionalAccuracy_value></PositionalAccuracy_value></PositionalAccuracy_DQ_QuantitativeResult>
+</PositionalAccuracy_result>
+</PositionalAccuracy_evalqualsubname>
+</PositionalAccuracy>
+<TemporalAccuracy>
+<TemporalAccuracy_evalqualsubname>
+<TemporalAccuracy_nameOfMeasure></TemporalAccuracy_nameOfMeasure>
+<TemporalAccuracy_measureDescription></TemporalAccuracy_measureDescription>
+<TemporalAccuracy_result>
+<TemporalAccuracy_DQ_QuantitativeResult>
+<TemporalAccuracy_valueUnit></TemporalAccuracy_valueUnit>
+<TemporalAccuracy_value></TemporalAccuracy_value></TemporalAccuracy_DQ_QuantitativeResult>
+</TemporalAccuracy_result>
+</TemporalAccuracy_evalqualsubname>
+</TemporalAccuracy>
+<ThematicAccuracy>
+<ThematicAccuracy_evalqualsubname>
+<ThematicAccuracy_nameOfMeasure></ThematicAccuracy_nameOfMeasure>
+<ThematicAccuracy_measureDescription></ThematicAccuracy_measureDescription>
+<ThematicAccuracy_result>
+<ThematicAccuracy_DQ_QuantitativeResult>
+<ThematicAccuracy_valueUnit></ThematicAccuracy_valueUnit>
+<ThematicAccuracy_value></ThematicAccuracy_value></ThematicAccuracy_DQ_QuantitativeResult>
+</ThematicAccuracy_result>
+</ThematicAccuracy_evalqualsubname>
+</ThematicAccuracy>
+</report>
+<LI_Lineage>
+<statement>El Conjunto nacional de información topográfica a escala 1:50 000, 2025, es la continuación de los procesos de actualización establecidos en la metodología aplicada a los datos topográficos escala 1:50 000, 2024. Mantiene los estándares de calidad cualitativa en cuanto a la completitud de geometrías y atributos, y el campo correspondiente para los nombres geográficos. Para la actualización del Conjunto, se emplearon distintas fuentes de datos provenientes de las unidades de Estado productoras de información cartográfica que integran al SNIEG, las cuales fueron seleccionadas mediante un estricto control de calidad para su incorporación al Conjunto nacional.
+
+Uno de los insumos fundamentales fueron las imágenes satelitales de alta resolución, que garantizan una representación geométrica precisa y acorde con la realidad física del territorio. En específico, las imágenes obtenidas de la plataforma geoespacial OneAtlas de Airbus, la cual ofrece acceso a imágenes captadas entre 2023 y 2025, de diversas resoluciones y fuentes.
+
+Entre las herramientas de la plataforma, destaca Living Library, que proporciona imágenes satelitales de diversas constelaciones. La constelación Pleiades (PHR) ofrece imágenes con 50 centímetros de resolución y una cobertura de nubes menor al 15 por ciento. La constelación Pleiades NEO (PNEO) genera imágenes de 30 centímetros de resolución y una cobertura de nubes de menos de 2 % por medio de dos satélites idénticos; además de imágenes con una resolución de 1.5 metros obtenidas por el satélite SPOT 6.</statement>
+<LI_ProcessStep>
+<LI_ProcessStep_description>1. Preparación de la base cartográfica. Consistió en tomar como base el Conjunto Nacional de Información Topográfica Escala 1:50 000, publicado en el año 2024, para actualizarlo en la base de datos de producción y generar el Conjunto nacional de información topográfica a escala 1:50 000, 2025.</LI_ProcessStep_description>
+<LI_ProcessStep_description>2. Generación de insumos auxiliares. Consistió en identificar información de diversas fuentes de datos, descargarla, organizarla, georreferenciarla, estructurarla, higienizarla y codificarla; posteriormente, se realizaron confrontas para detectar los datos que requirieran actualizarse y generar los insumos auxiliares que se integraron a la base de datos de producción como referencia para la actualización.</LI_ProcessStep_description>
+<LI_ProcessStep_description>3. Actualización en gabinete. Consistió en la revisión y análisis, de manera digital, de los objetos espaciales del Conjunto nacional, mediante la Herramienta de Extracción y Digitalización Topográfica (HEDIT), y utilizando como referencia los insumos auxiliares integrados en la base de datos de producción.</LI_ProcessStep_description>
+<LI_ProcessStep_description>4. Verificación en campo. Consistió en identificar los objetos espaciales que no fue posible actualizar en la etapa de gabinete; se preparó la información para su verificación en campo mediante dispositivos móviles y aplicativos offline.</LI_ProcessStep_description>
+<LI_ProcessStep_description>5. Validación de la información topográfica. Consistió en la revisión, detección y corrección de todos los datos tabulares y vectoriales de acuerdo con lo especificado en el Diccionario de datos topográficos Escala 1:50 000 (2020), versión 2022. En una primera etapa, se realizó la validación por muestreo de cada una de las capas de información; en la siguiente, de manera automática, se ejecutaron validaciones geométricas y de atributos mediante herramientas diseñadas específicamente para esta tarea.</LI_ProcessStep_description>
+<LI_ProcessStep_description>Tecnología empleada en el proceso.
+
+Hardware: Equipo de cómputo (Intel Core i7-10700 2.90GHz, 32 GB RAM, 250GB SSD, Windows 10 Enterprise 22H2).
+Software: a) Herramienta de Extracción y Digitalización Topográfica (HEDIT), Sistema de Información Geográfica desarrollado por el INEGI que funciona a través de un navegador web.
+          b) Sistemas de Información Geográfica (ArcGIS y QGIS).</LI_ProcessStep_description>
+<LI_ProcessStep_description>Control de calidad de la información del Conjunto nacional.
+Criterio: Completitud
+Subcriterio: Omisión.
+Ámbito de la revisión: Puntos, líneas y áreas. 
+Inspección: Completa. 
+Explicación de la revisión: Se realizó la validación mediante procesos automatizados para detectar rasgos faltantes, inconsistencias en los atributos y eliminación de datos no vigentes.
+Resultados de la revisión: El 60 % de las situaciones de completitud detectadas se corrigieron.
+Fecha o período de realización: El periodo de ejecución de este control se realizó de octubre 2024 a agosto 2025.
+Revisor: INEGI (ámbitos regional y estatal).
+Observaciones: Las situaciones detectadas se corrigieron con el apoyo de los insumos auxiliares. </LI_ProcessStep_description>
+<LI_ProcessStep_description>Control de calidad de la información del Conjunto nacional.
+Criterio: Consistencia lógica
+Subcriterio: Consistencia conceptual.
+Ámbito de la revisión: Puntos, líneas y áreas. 
+Inspección: Completa. 
+Explicación de la revisión: Mediante procesos automatizados, se verificó la correcta estructura de los datos; se buscaron inconsistencias en atributos, capas, entidades y tablas.
+Resultados de la revisión: Aproximadamente, el 99 % de la totalidad de los datos vectoriales no presentaron alguna inconsistencia lógica. Las inconsistencias se solucionaron cuidando la correcta aplicación de las normas para la representación de los datos. 
+Fecha o período de realización: El periodo de ejecución de este control se realizó de octubre 2024 a agosto 2025.
+Revisor: INEGI (ámbitos regional y estatal).
+Observaciones: Las inconsistencias en los datos se debieron a omisiones involuntarias en la aplicación de las normas definidas en el Diccionario de datos topográficos Escala 1:50 000 (2020), versión 2022.</LI_ProcessStep_description>
+<LI_ProcessStep_description>Control de calidad de la información del Conjunto nacional.
+Criterio: Consistencia lógica
+Subcriterio: Consistencia topológica.
+Ámbito de la revisión: Puntos, líneas y áreas.
+Inspección: Completa.
+Explicación de la revisión: Mediante procesos automatizados, se verificó la representación de los objetos para identificar inconsistencias como áreas mal cerradas, cruces entre objetos con geometría de línea, sobreposición de objetos con geometría de línea, sobreposición de objetos con geometría de área, vértices duplicados, objetos duplicados y objetos sin conexión, según lo especificado en el Diccionario de datos topográficos Escala 1:50 000 (2020), versión 2022.
+Indicador aplicado: Revisión de consistencia topológica.
+Qué expresa el indicador: Con valor 1, informa que se revisó la consistencia topológica en datos con estructura vectorial (representación de punto, línea o polígono). Con valor 0, informa que no se revisó la consistencia topológica.  
+Resultados de la revisión: 1.
+Nivel de calidad de conformidad: Se aplicaron tolerancias de error de 0.005 m ~ 2 m
+Fecha o período de realización: El periodo de ejecución de este control se realizó de julio 2025 a agosto 2025.
+Revisor: INEGI (ámbitos central, regional y estatal).
+Observaciones: Las inconsistencias en los datos vectoriales se debieron a omisiones involuntarias en la aplicación de las normas definidas en el Diccionario de datos topográficos Escala 1:50 000 (2020), versión 2022. </LI_ProcessStep_description>
+</LI_ProcessStep>
+<LI_Source>
+<LI_Source_description>Fuentes empleadas en el proceso.
+
+Fuente 1: Información Topográfica a escala 1:50 000 Serie II.
+Fuente 2: Cuerpos de Agua Escala 1:50 000.
+Fuente 3: Carta Topográfica escala 1:20 000.
+Fuente 4: Continuo Nacional de las 5 Capas Actualizadas de Información Topográfica a Escala 1:50 000 Serie III 2013-2018.
+Fuente 5: Recopilación de Información de los Cementerios Públicos en las Zonas Metropolitanas del País 2020.
+Fuente 6: Infraestructura de Datos Espaciales Abiertos.
+Fuente 7: Agencia Nacional de Aduanas de México.
+Fuente 8: Conjunto Nacional de Datos Topográficos a escala 1:250 000.
+Fuente 9: Datos abiertos de Promtel.
+Fuente 10: Directorio Estadístico Nacional de Unidades Económicas.
+Fuente 11: Información sobre la gestión municipal de los servicios de agua y saneamiento.
+Fuente 12: Mapa de Hidrocarburos.
+Fuente 13: Red Ferroviaria Nacional.
+Fuente 14: Conjunto nacional de información topográfica a escala 1:50 000, 2024.
+Fuente 15: Continuo Nacional de Curvas de Nivel.
+Fuente 16: Datos abiertos de México-Agencia Federal de Aviación Civil.
+Fuente 17: OpenStreetMap.
+Fuente 18: Red Nacional de Caminos.
+Fuente 19: Catálogo de Claves Únicas de Establecimientos de Salud.
+Fuente 20: Red Geodésica Nacional Pasiva.</LI_Source_description>
+</LI_Source>
+</LI_Lineage>
+</DQ_DataQuality>
+<Attributes>
+<schemaAscii>Las entidades son representadas por medio de puntos, líneas o áreas, donde cada una de ellas hace referencia a un elemento o fenómeno geográfico.
+Se enlistan las entidades correspondientes a este Conjunto nacional.
+
+                             TIPO DE ENTIDAD      PUNTOS      LÍNEAS       ÁREAS       TOTAL
+                                   Acueducto           0       2,334           0       2,334
+                             Aeródromo civil           0           0           4           4
+                                Área pública           0           0         419         419
+                           Banco de material         463           0           0         463
+Estación geodésica vertical o Banco de nivel       3,229           0           0       3,229
+                                       Bordo           0      28,260           0      28,260
+                                      Camino           0      46,158           0      46,158
+                                       Canal           0         862          58         920
+                                   Carretera           0       3,427           0       3,427
+                                  Cementerio         219           0       2,669       2,888
+                                    Conducto           0         306           0         306
+                           Corriente de agua           0      49,830         514      50,344
+                    Corriente que desaparece       2,662           0           0       2,662
+                              Cuerpo de agua           0           0      58,188      58,188
+                              Curva de nivel           0      99,968           0      99,968
+                        Depósito de desechos         173           0           0         173
+                        Edificación cultural       5,955           0       3,560       9,515
+                                 Edificación     379,286           0         440     379,726
+                            Elemento insular          21           0         588         609
+           Emisor de señales para navegación          79           0           0          79
+                              Enlace fluvial           0          33           0          33
+               Entrada a cavidad subterránea          44           0           0          44
+                                     Escuela       4,355           0      12,681      17,036
+                     Estación de ferrocarril           4           0           2           6
+             Estación geodésica gravimétrica         623           0           0         623
+               Estación geodésica horizontal      13,450           0           0      13,450
+   Estación de abastecimiento de combustible         312           0           0         312
+                Estación de telecomunicación         675           0           0         675
+                                    Estanque           0           0         313         313
+                          Estructura elevada          27           0           0          27
+                 Forma del relieve submarino          21           0          35          56
+                      Funicular / teleférico           0           1           0           1
+                                      Granja           0           0         326         326
+                         Instalación aduanal           0           0           3           3
+                       Instalación de bombeo       1,322           0         203       1,525
+          Instalación deportiva o recreativa          41           0         553         594
+                         Instalación diversa          14           0          93         107
+                      Instalación industrial           0           0          63          63
+                       Instalación portuaria           0          50         107         157
+                              Línea de costa           0          14           0          14
+                        Línea de transmisión           0         576           0         576
+                                   Localidad      21,425           0       4,742      26,167
+                                     Malpaís           0           0           6           6
+                                   Manantial       2,067           0           0       2,067
+                                     Manzana           0           0     165,900     165,900
+                                        Mina          18           0           0          18
+                          Muro de contención           0           6           0           6
+                                     Pantano           0           0          86          86
+                           Pista de aviación           0           7          20          27
+                           Pista de carreras           0          28           0          28
+                              Planta de agua           0           0          78          78
+                           Planta generadora           3           0          12          15
+                              Plaza de cobro          51           0           0          51
+                                        Pozo       4,087           0           0       4,087
+                                       Presa           0         103           0         103
+                                      Puente           0       2,969           0       2,969
+                               Punto acotado          81           0           0          81
+                          Rasgo arqueológico           0           0          11          11
+                       Referencia geográfica       2,810           0           0       2,810
+                               Salto de agua         136          17           0         153
+                             Servicio médico       1,257           0       1,351       2,608
+                       Subestación eléctrica          20           0         167         187
+                                      Tanque       5,441           0         140       5,581
+                 Terreno sujeto a inundación           0           0       1,395       1,395
+                                       Túnel           0          42           0          42
+                                        Vado         186           0           0         186
+                                  Vía férrea           0          36           0          36
+                                    Vialidad           0     158,997           0     158,997
+                                Zona arenosa           0           0         151         151
+                                 ----------- ----------- ----------- ----------- -----------
+                                    CANTIDAD     450,557     394,024     254,878   1,099,459
+</schemaAscii>
+<entity_detail>En la siguiente dirección del Sitio del INEGI se encuentra el Diccionario de datos topográficos Escala 1:50 000 (2020), versión 2022, donde se describe a detalle la información contenida en el conjunto de datos: https://www.inegi.org.mx/app/biblioteca/ficha.html?upc=889463908746</entity_detail>
+</Attributes>
+<MD_Distribution>
+<accessConstraints>8. Acceso al público a través de Internet y los Centros de Información del Instituto Nacional de Estadística y Geografía - INEGI.</accessConstraints>
+<useConstraints>8. Ninguna.</useConstraints>
+<otherConstraints>El Instituto Nacional de Estadística y Geografía - INEGI no se hace responsable por el uso que usted les dé a los datos.</otherConstraints>
+<MD_Format>
+<name>ShapeFile (.shp) y Geopackage (.gpkg).</name>
+<version>No Aplica.</version>
+</MD_Format>
+</MD_Distribution>
+<Inf_Metadata>
+<metadataStandardName>ISO 19115 Información Geográfica - Metadatos (Norma Técnica para Metadatos).</metadataStandardName>
+<metadataStandardVersion>2003 (1.0).</metadataStandardVersion>
+<Inf_Metadata_language>ES - Español.</Inf_Metadata_language>
+<CI_ResponsibleParty>
+<Inf_Metadata_CI_ResponsibleParty_individualName>Lic. Rafael Arrioja Urzúa.</Inf_Metadata_CI_ResponsibleParty_individualName>
+<Inf_Metadata_CI_ResponsibleParty_organisationName>Instituto Nacional de Estadística y Geografía - INEGI.</Inf_Metadata_CI_ResponsibleParty_organisationName>
+<Inf_Metadata_CI_ResponsibleParty_positionName>Departamento de Administración de Metadatos.</Inf_Metadata_CI_ResponsibleParty_positionName>
+<Inf_Metadata_CI_ResponsibleParty_voice>449 910 5300 Extensiones 31 1750 y 31 5631.</Inf_Metadata_CI_ResponsibleParty_voice>
+<Inf_Metadata_CI_ResponsibleParty_facsimile></Inf_Metadata_CI_ResponsibleParty_facsimile>
+<Inf_Metadata_CI_ResponsibleParty_deliveryPoint>Avenida Héroe de Nacozari Sur 2301, Fraccionamiento Jardines del Parque, 20276, Aguascalientes, Aguascalientes, Aguascalientes, entre Calle INEGI, Avenida del Lago y Avenida Paseo de las Garzas. </Inf_Metadata_CI_ResponsibleParty_deliveryPoint>
+<Inf_Metadata_CI_ResponsibleParty_city>Aguascalientes.</Inf_Metadata_CI_ResponsibleParty_city>
+<Inf_Metadata_CI_ResponsibleParty_administrativeArea>Aguascalientes.</Inf_Metadata_CI_ResponsibleParty_administrativeArea>
+<Inf_Metadata_CI_ResponsibleParty_postalCode>20276</Inf_Metadata_CI_ResponsibleParty_postalCode>
+<Inf_Metadata_CI_ResponsibleParty_country>México.</Inf_Metadata_CI_ResponsibleParty_country>
+<Inf_Metadata_CI_ResponsibleParty_electronicMailAddress>rafael.arrioja@inegi.org.mx</Inf_Metadata_CI_ResponsibleParty_electronicMailAddress>
+<Inf_Metadata_CI_ResponsibleParty_role>  7. Punto de contacto: Parte que puede ser contactada para informarse sobre el recurso o adquisición del mismo.</Inf_Metadata_CI_ResponsibleParty_role>
+</CI_ResponsibleParty>
+<dateStamp>2026-03-24</dateStamp>
+<Inf_Metadata_characterSet>  4. Utf8: Formato de Transferencia UCS de tamaño variable de 8-bit, basado en ISO/IEC 10646.</Inf_Metadata_characterSet>
+</Inf_Metadata>
+</Metadata>

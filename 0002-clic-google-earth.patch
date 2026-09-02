@@ -1,0 +1,74 @@
+From c0cab93eb722eef8a9f152abee922acb7a21a7e6 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 31 Aug 2026 23:41:46 +0000
+Subject: [PATCH] Clic en punto del mapa 3D abre Google Earth Web en esa
+ coordenada (deforestacion, incendios; carbono por confirmar)
+
+---
+ core/geomatica.py | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/core/geomatica.py b/core/geomatica.py
+index 4a5e034..e84491b 100644
+--- a/core/geomatica.py
++++ b/core/geomatica.py
+@@ -280,6 +280,47 @@ def calcular_margen_top_titulo(titulo):
+     return max(80, 50 + n_lineas_titulo * 23)
+ 
+ 
++# --- Clic en cualquier punto del mapa 3D -> Google Earth Web en esa coordenada ---
++# Se inyecta como <script> al final del HTML de Plotly (ver fig.write_html() al
++# fondo de generar_mapa_3d). Funciona en TODOS los mapas que pasan por esta
++# función (deforestacion.py, carbono.py, validacion_incendios.py,
++# cuenca_completa.py, validacion_hidrologica.py, agua_superficial.py) porque
++# todos comparten este único punto de salida -- no hay que tocar cada módulo.
++#
++# Por qué cd[cd.length-2] / cd[cd.length-1] y no un índice fijo: cada trazo
++# arma su propio customdata con distinto número de columnas (terreno =
++# [alt, lat, lon], deforestacion = [alt, anio, lat, lon], corredor =
++# [alt, delta, lat, lon], etc.) pero TODOS los que sí llevan lat/lon los
++# agregan como las dos últimas columnas (ver *_cols += [lat_grid, lon_grid]
++# en deforestacion.py/corredor_descendente.py, o el dstack/column_stack
++# directo aquí mismo) -- así que tomar las últimas dos columnas es genérico
++# y no requiere saber de qué trazo vino el clic. Si un trazo no trae
++# lat/lon en customdata (ej. cuando utm_crs es None), simplemente no pasa
++# nada al hacer clic -- no truena.
++#
++# LIMITACIÓN CONOCIDA (no resuelta, pendiente de probar): esta URL abre
++# Google Earth Web centrado en el punto, pero NO se confirmó si activa
++# también el modo "Imágenes históricas" (línea de tiempo) -- puede que el
++# usuario tenga que darle un clic más al ícono del reloj una vez ahí.
++CLICK_ABRE_GOOGLE_EARTH_JS = """
++(function() {
++    var gd = document.getElementById('mapa3d');
++    if (!gd || !gd.on) return;
++    gd.on('plotly_click', function(ev) {
++        var pt = ev.points && ev.points[0];
++        var cd = pt && pt.customdata;
++        if (!cd || cd.length < 2) return;
++        var lat = cd[cd.length - 2];
++        var lon = cd[cd.length - 1];
++        if (typeof lat !== 'number' || typeof lon !== 'number') return;
++        var url = 'https://earth.google.com/web/@' + lat.toFixed(6) + ',' + lon.toFixed(6)
++                 + ',0a,600d,35y,0h,0t,0r';
++        window.open(url, '_blank');
++    });
++})();
++"""
++
++
+ def generar_mapa_3d(hidrologia, id_proyecto, html_path, subtitulo=None, utm_crs=None, titulo_base=None,
+                      capas_extra=None, devolver_fig=False):
+     """Genera el HTML interactivo con Plotly a partir del resultado de
+@@ -464,7 +505,7 @@ def generar_mapa_3d(hidrologia, id_proyecto, html_path, subtitulo=None, utm_crs=
+     )
+     if devolver_fig:
+         return fig
+-    fig.write_html(html_path)
++    fig.write_html(html_path, div_id="mapa3d", post_script=CLICK_ABRE_GOOGLE_EARTH_JS)
+     return html_path
+ 
+ 
+-- 
+2.43.0
+

@@ -77,6 +77,36 @@ están en [`RUNBOOK.md`](RUNBOOK.md)** — no en este README. Para correrlo de u
 tirón sobre un sitio nuevo, edita las variables al principio de
 [`run_pipeline.sh`](run_pipeline.sh) y corre `bash run_pipeline.sh`.
 
+## Dictamen integrado CO2 + Biodiversidad (V19.4 Híbrido Corregido)
+
+Un tercer pipeline, complementario al de arriba: combina el CO2e por zona (mismo
+dataset ESA CCI + GEDI del punto anterior) con un inventario de biodiversidad por
+zona (GBIF) en un solo dictamen técnico-científico para CONANP/SEDEMA. Pensado
+para cualquier ANP o predio, sea o no sitio Ramsar.
+
+- `core/salamandra_biodiversidad.py` — `validate_taxonomic_class()`: valida la
+  columna `CLASE` de cada registro de biodiversidad contra su `FAMILIA` (tabla de
+  autoridad de 240 familias) y corrige a `CLASE_VALIDADA`. Existe porque los
+  scripts históricos de descarga GBIF (V16/V16.5) escribían en `CLASE` la clase
+  taxonómica *pedida* a la API, no la que GBIF *realmente* devolvía por registro
+  — un bug que corrompió el `CLASE` del CSV histórico de Texolo durante 4
+  versiones seguidas (hasta 34% de discrepancia visto en corridas reales).
+  `V19_4_HIBRIDO_CORREGIDO.py` ya trae `CLASE` correcta desde el origen (toma
+  `o.get("class")` de la respuesta de GBIF, nunca la clase pedida), pero de
+  todas formas pasa por esta validación como segunda red de seguridad.
+- `core/V19_4_HIBRIDO_CORREGIDO.py` — orquestador de este pipeline: lee (o
+  descarga automáticamente de GBIF) biodiversidad por zona, cruza con el CSV de
+  carbono, y genera el dictamen (PDF + TXT), 4 mapas HD y los CSV de resumen. Si
+  no se pasa `--csv-biodiversidad`, descarga de GBIF en vivo (todas las clases
+  taxonómicas, anillo exclusivo núcleo/500m/1000m sin traslape entre zonas, con
+  reintento automático ante caídas 503 del servidor de GBIF).
+
+**Importante sobre el Sitio Ramsar 1601:** el texto de "sitio Ramsar confirmado"
+en el dictamen no sale por default — requiere pasar explícitamente
+`--confirmar-ramsar-1601-texolo`, y esa bandera solo debe usarse para Cascadas de
+Texolo. Ver el porqué (un bug real que sí llegó a generarse) y los comandos
+exactos en [`RUNBOOK.md`](RUNBOOK.md).
+
 ## Contexto
 
 Desarrollado por Rubén Viccon Morales como parte de IRD CLOUD Engine, en el marco de un piloto de trazabilidad EUDR con productores de café de Teocelo, Veracruz (ver también GEODICTUM, sello de trazabilidad entregado a productores en 2026).

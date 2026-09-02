@@ -1,0 +1,23 @@
+[ML] Sin modelo entrenado - usando reglas físicas Einstein (fallback)
+=== MOTOR NACIONAL PODEROSO v7.0 - DEMO AUDITORÍA NACIONAL ===
+
+VER-CAFE-0.25ha-SIN-NICFI | 0.25ha | Veracruz | B=40% JRC=35% D_validada=0.0ha NICFI=False NDVI_NICFI=NA->NA
+  => Amarillo | REQUIERE_EVIDENCIA | Sistema:cafe_bajo_sombra | Revisión:True | STATUS:DRAFT_LOCAL | Firma:ba6124574e84d03d
+  Evidencia: Parcela 0.2500 ha <0.5ha mínimo Hansen 30m. JRC 35.0% ESRI 80% árboles. Requiere foto campo o NICFI 4.77m....
+
+VER-CAFE-0.25ha-CON-NICFI | 0.25ha | Veracruz | B=40% JRC=35% D_validada=0.0ha NICFI=True NDVI_NICFI=0.72->0.7
+  => Verde | APTO_EXPORTACION | Sistema:cafe_bajo_sombra | Revisión:False | STATUS:DRAFT_LOCAL | Firma:4c4331aeaa138500
+  Evidencia: NICFI rescate: área <0.5ha pero NDVI estable sin caída >25.0%....
+
+MIC-AGUACATE-2ha-ROJO | 2.0ha | Michoacán | B=35% JRC=60% D_validada=1.2ha NICFI=False NDVI_NICFI=NA->NA
+  => Rojo | NO_APTO_EXPORTACION | Sistema:aguacate | Revisión:False | STATUS:DRAFT_LOCAL | Firma:ba6a9bc473d131de
+  Evidencia: Hansen v1.13 1.2000 ha pérdida validada. Descartada aislada 0.0900 ha documentada no usada para Rojo....
+
+VER-SILVO-1.2ha-VERDE | 1.2ha | Veracruz | B=30% JRC=45% D_validada=0.0ha NICFI=False NDVI_NICFI=NA->NA
+  => Verde | APTO_EXPORTACION | Sistema:silvopastoril | Revisión:False | STATUS:DRAFT_LOCAL | Firma:b30ea280037842c7
+  Evidencia: JRC 45.0% baseline consistente ESRI 15% crops....
+
+CHIS-PALMA-5ha | 5.0ha | Chiapas | B=55% JRC=50% D_validada=0.0ha NICFI=False NDVI_NICFI=NA->NA
+  => Verde | APTO_EXPORTACION | Sistema:palma_aceite | Revisión:False | STATUS:DRAFT_LOCAL | Firma:df554735b26373e7
+  Evidencia: JRC 50.0% baseline consistente ESRI 15% crops....
+
