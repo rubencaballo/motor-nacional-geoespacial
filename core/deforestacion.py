@@ -422,6 +422,25 @@ def _descargar_lossyear_alineado(ee, geom_wgs84_visual, transform_ref, shape_ref
     return lossyear_alineado
 
 
+def _perdida_ha_por_anio_visual(lossyear_alineado, hidrologia, anio_inicio, anio_fin):
+    """Hectáreas de pérdida Hansen por año, dentro del área visual completa (buffer
+    máximo, sin traslape entre anillos -- cada píxel cuenta una sola vez). Usa
+    EXACTAMENTE el mismo array lossyear_alineado y el mismo filtro
+    zona_de_pixel != 'fuera' que construir_capa_deforestacion_3d (la capa 3D) y
+    generar_desglose_anual_visual (el CSV de desglose), así que el total por año
+    que devuelve aquí es consistente con esos dos -- pensado para etiquetar el
+    colorbar del mapa 3D con la cifra de cada año, no solo el año. Devuelve
+    {anio: ha} para anio_inicio..anio_fin inclusive (0.0 si ese año no tuvo
+    pérdida)."""
+    pw_ha = hidrologia["pw_v"] * hidrologia["ph_v"] / 10000.0
+    zona_px = hidrologia["zona_de_pixel"]
+    dentro = (zona_px != "fuera")
+    return {
+        anio: round(float(((lossyear_alineado == (anio - 2000)) & dentro).sum() * pw_ha), 4)
+        for anio in range(anio_inicio, anio_fin + 1)
+    }
+
+
 def construir_capa_deforestacion_3d(lossyear_alineado, hidrologia, anio_inicio=None, anio_fin=None, utm_crs=None):
     """Construye el trazo go.Scatter3d de las manchas de deforestación,
     coloreado por año (amarillo=más antiguo, rojo oscuro=más reciente --
@@ -492,13 +511,19 @@ def construir_capa_deforestacion_3d(lossyear_alineado, hidrologia, anio_inicio=N
     # vea el mapa sin poder preguntar.
     tickvals = list(range(anio_inicio, anio_fin, 2)) + [anio_fin]
 
+    # Hectáreas perdidas por año (área visual completa, sin traslape) -- para que
+    # el colorbar no solo diga el año sino también cuánto se perdió ese año, sin
+    # que quien vea el mapa tenga que ir a abrir el CSV de desglose aparte.
+    perdida_anual = _perdida_ha_por_anio_visual(lossyear_alineado, hidrologia, anio_inicio, anio_fin)
+    ticktext = [f"{a} - {perdida_anual.get(a, 0.0):,.1f} ha" for a in tickvals]
+
     capa = go.Scatter3d(
         x=x_km, y=y_km, z=z_km, mode="markers",
         marker=dict(
             size=2.6, color=anios_reales,
             colorscale=[[0.0, "#FFFF00"], [0.33, "#FFA500"], [0.66, "#FF4500"], [1.0, "#8B0000"]],
             cmin=anio_inicio, cmax=anio_fin, opacity=0.85,
-            colorbar=dict(title="Año de<br>pérdida", x=1.15, tickvals=tickvals),
+            colorbar=dict(title="Año de<br>pérdida", x=1.15, tickvals=tickvals, ticktext=ticktext),
         ),
         customdata=customdata, hovertemplate=hovertemplate,
         name=f"Deforestación Hansen {anio_inicio}-{anio_fin}",
@@ -596,15 +621,56 @@ def generar_mapa_3d_deforestacion(geojson_path, id_proyecto, zonas_m=None, anio_
                        "<br>La oficial sale de deforestacion_resumen_sin_traslape_*.csv (consulta directa en "
                        "Earth Engine).")
 
-    generar_desglose_anual_visual(lossyear_alineado, hidrologia, anio_inicio, anio_fin, id_proyecto, carpeta_salida)
-
-    html_path = os.path.join(carpeta_salida, f"{id_proyecto.lower()}_3d_deforestacion.html")
-    titulo_base = f"{id_proyecto} -- Modelo de terreno 3D + deforestación Hansen {anio_inicio}-{anio_fin}"
-    geomatica.generar_mapa_3d(
-        hidrologia, id_proyecto, html_path, subtitulo=subtitulo, utm_crs=utm_crs, capas_extra=capas_extra,
-        titulo_base=titulo_base,
+    _csv_desglose, df_desglose = generar_desglose_anual_visual(
+        lossyear_alineado, hidrologia, anio_inicio, anio_fin, id_proyecto, carpeta_salida,
     )
-    log(f"Mapa 3D con deforestación por año: {html_path}")
+
+    titulo_base = f"{id_proyecto} -- Modelo de terreno 3D + deforestación Hansen {anio_inicio}-{anio_fin}"
+    fig = geomatica.generar_mapa_3d(
+        hidrologia, id_proyecto, None, subtitulo=subtitulo, utm_crs=utm_crs, capas_extra=capas_extra,
+        titulo_base=titulo_base, devolver_fig=True,
+    )
+
+    # 2026-09-06 (pedido por el usuario viendo este mismo mapa): tablita año por
+    # año AL COSTADO del mapa 3D con hectáreas perdidas ESE año + acumulado
+    # corriendo -- ver reportes_html.tabla_desglose_anual_deforestacion_html()
+    # para por qué esto vive en una tabla aparte y no en las etiquetas de la
+    # barra de color de Plotly (se hubiera visto amontonado con 25 años).
+    from core import reportes_html
+    div_mapa_plotly = fig.to_html(full_html=False, include_plotlyjs=True,
+                                   config={"displaylogo": False}, div_id="mapa3d_deforestacion")
+    tabla_anual_html = reportes_html.tabla_desglose_anual_deforestacion_html(df_desglose, anio_inicio, anio_fin)
+    div_mapa = (f'<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">'
+                f'<div style="flex:3 1 600px">{div_mapa_plotly}</div>'
+                f'<div style="flex:1 1 340px">'
+                f'<p class="tabla-riesgo-caption">Hectáreas perdidas por año (área visual, buffer '
+                f'{max(zonas_m)}m) -- ver nota al pie sobre por qué este número no siempre coincide con el '
+                f'total oficial de la plataforma.</p>'
+                f'{tabla_anual_html}</div></div>'
+                # 2026-09-06 (pedido por el usuario): picar un punto de deforestación
+                # en el mapa 3D abre Google Earth Engine Timelapse en ese lat/lon --
+                # ver reportes_html.script_click_deforestacion_timelapse_html() para
+                # el detalle y la nota honesta sobre qué tan verificado está el
+                # formato de esa liga.
+                + reportes_html.script_click_deforestacion_timelapse_html("mapa3d_deforestacion"))
+
+    html_final = reportes_html.pagina_html_con_tarjetas(
+        titulo_pagina=f"{id_proyecto} -- Deforestación 3D",
+        h1=titulo_base,
+        subtitulo=f"Hansen {anio_inicio}-{anio_fin} -- {ha_perdidas_visual:.2f} ha perdidas dentro del área "
+                  f"visual (buffer {max(zonas_m)}m)",
+        tarjetas_html="",
+        div_mapa=div_mapa,
+        nota_pie=("El desglose anual y el mapa 3D vienen del MISMO conteo de píxeles ya remuestreados a la "
+                  "malla del terreno -- casi seguro no coincide exacto con el total oficial de la plataforma "
+                  "(deforestacion_resumen_sin_traslape_*.csv, consulta vectorial directa en Earth Engine, la "
+                  "que alimenta core/carbono_perdida.py); la diferencia típica es de unos pocos puntos "
+                  "porcentuales por el remuestreo, no un error de conteo doble."),
+    )
+    html_path = os.path.join(carpeta_salida, f"{id_proyecto.lower()}_3d_deforestacion.html")
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(html_final)
+    log(f"Mapa 3D con deforestación por año (+ tabla anual al costado): {html_path}")
     return html_path
 
 
@@ -654,7 +720,11 @@ def generar_desglose_anual_visual(lossyear_alineado, hidrologia, anio_inicio, an
     df_out.to_csv(csv_path, index=False)
     log(f"Desglose anual EXACTO del mapa 3D (píxel a píxel, por anillo sin traslape) guardado en: {csv_path}",
         nivel="OK")
-    return csv_path
+    # Devuelve también el DataFrame (no solo la ruta) -- 2026-09-06: el mapa 3D de
+    # deforestación ahora dibuja una tablita año-por-año al costado (ver
+    # generar_mapa_3d_deforestacion() / reportes_html.tabla_desglose_anual_deforestacion_html())
+    # y necesita estos mismos números sin tener que releer el CSV que se acaba de escribir.
+    return csv_path, df_out
 
 
 # ==============================================================================

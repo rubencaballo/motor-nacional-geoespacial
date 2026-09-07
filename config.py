@@ -74,7 +74,10 @@ GEDI_ESCALA_M = 25  # resolucion nominal de la huella GEDI
 # --- core/deforestacion.py: deforestacion Hansen + tendencia de indices
 #     espectrales (NDVI/NDMI/NDWI) por anio, para CUALQUIER poligono -- ANP
 #     completa O parcela chica de un productor, independiente del analisis EUDR ---
-DEFORESTACION_ANIO_INICIO_DEFAULT = 2010  # igual al historico que Ruben ya corrio a mano para Texolo
+DEFORESTACION_ANIO_INICIO_DEFAULT = 2001  # 2026-09-06: corregido -- Ruben confirmo que la corrida
+# historica real de Texolo fue 2001-2025, no 2010 como se habia asumido antes en este comentario.
+# Hansen cubre desde 2001 sin problema (ver nota de DEFORESTACION_ANIO_MIN_SENTINEL2 abajo), asi
+# que no hay limite tecnico para usar el rango completo.
 DEFORESTACION_ANIO_MIN_SENTINEL2 = 2016  # Sentinel-2 no tiene cobertura confiable antes de esto --
 # Hansen SI cubre desde 2001 sin este limite (son datasets distintos, ver docstring del modulo).
 DEFORESTACION_NUBOSIDAD_MAX_PCT = 20  # filtro de nubes Sentinel-2 por año, igual que el script previo
