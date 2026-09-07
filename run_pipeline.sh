@@ -32,7 +32,7 @@ ANIO_FIN="${ANIO_FIN:-2025}"
 CARPETA_SALIDA="${CARPETA_SALIDA:-$HOME/resultados_$(echo "$ID_PROYECTO" | tr '[:upper:]' '[:lower:]')}"
 
 # --- Opcionales -- deja vacio ("") para saltar ese paso/bandera ---
-SHAPEFILE_INEGI="${SHAPEFILE_INEGI:-}"               # valida cauces D8 vs INEGI dentro del paso 1
+SHAPEFILE_INEGI="${SHAPEFILE_INEGI:-conjunto_de_datos/cnit50k.gpkg}"               # valida cauces D8 vs INEGI dentro del paso 1
 ANIOS_INCENDIO="${ANIOS_INCENDIO:-}"                 # ej. "2025" -- anios con incendio YA confirmado (paso 4)
 EVENTOS_CONFIRMADOS="${EVENTOS_CONFIRMADOS:-}"       # ej. "2025:2025-04-17" -- fecha real conocida (paso 6)
 CORRER_VALIDACION_INCENDIOS="${CORRER_VALIDACION_INCENDIOS:-1}"  # 0 para saltar el paso 6 completo

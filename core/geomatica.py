@@ -67,30 +67,77 @@ from config import (
 # ==============================================================================
 # --- FUNCIONES DE BAJO NIVEL (puras: reciben datos, no leen archivos ni red) ---
 # ==============================================================================
-def recortar_y_calcular(dst_array, meta_utm, geom_poligono):
+def recortar_y_calcular(dst_array, meta_utm, geom_poligono, margen_px=2):
     """Recorta UN raster (ya en memoria, ya reproyectado) a UN polígono y
     calcula elevación/pendiente de forma completamente aislada. No debe
     recibir ni devolver nada que se mezcle con otro recorte -- ver REGLA DE
-    ORO en el docstring del módulo."""
+    ORO en el docstring del módulo.
+
+    CORRECCIÓN (02/09/2026, reemplaza la limitación documentada antes aquí
+    como "sesgo leve"): se midió con un caso de prueba controlado (polígono
+    circular sobre un DEM sintético con pendiente constante y CONOCIDA de
+    15°) que el sesgo NO era leve -- factor_relieve salía en x1.1625 en vez
+    de x1.0353 (+12.7 puntos porcentuales). La causa: se recortaba
+    exactamente al polígono (mask(..., crop=True)) y las celdas fuera del
+    polígono pero dentro de su bounding box (o sea, TODO el borde del
+    polígono, no solo casos raros) se rellenaban para el gradiente con el
+    promedio de TODA la zona -- en un sitio con relieve regional fuerte y
+    consistente (ej. un cono volcánico como Cofre de Perote), ese relleno
+    constante crea un salto artificial justo en el borde real y sobrestima
+    la pendiente ahí. Esto NO es exclusivo de polígonos angostos (como
+    decía la nota anterior) -- afecta a cualquier polígono no rectangular
+    con relieve regional marcado, que es el caso típico de una ANP real.
+
+    Corrección: en vez de recortar exactamente al polígono, se lee una
+    VENTANA del raster con `margen_px` píxeles de margen alrededor de su
+    bounding box (dst_array YA es el raster completo del sitio en memoria,
+    así que esos píxeles de margen son elevación REAL, no inventada) --
+    eso le da al gradiente vecinos reales incluso justo en el borde. El
+    polígono EXACTO (sin margen) se sigue usando, vía rasterize(), para
+    decidir qué celdas cuentan como `valid_mask` en área/estadísticas -- el
+    margen nunca se cuenta como área propia de la zona, solo evita
+    contaminar la pendiente de sus celdas reales del borde. Mismo criterio
+    ya aplicado y verificado en verificador_biodiversidad.area_3d_dem()."""
+    px_x = abs(meta_utm["transform"].a)
+    px_y = abs(meta_utm["transform"].e)
+
+    minx, miny, maxx, maxy = geom_poligono.bounds
+    minx -= margen_px * px_x
+    maxx += margen_px * px_x
+    miny -= margen_px * px_y
+    maxy += margen_px * px_y
+
     with rasterio.io.MemoryFile() as memfile:
         with memfile.open(**meta_utm) as tmp:
             tmp.write(dst_array, 1)
-            out_image, out_transform = mask(tmp, [geom_poligono], crop=True, nodata=np.nan, filled=True)
+            ventana = rasterio.windows.from_bounds(minx, miny, maxx, maxy, transform=tmp.transform)
+            ventana = ventana.round_offsets().round_lengths()
+            ventana = ventana.intersection(rasterio.windows.Window(0, 0, tmp.width, tmp.height))
+            if ventana.width <= 0 or ventana.height <= 0:
+                raise ValueError(
+                    "El polígono no se superpone con el raster DEM en memoria (recortar_y_calcular)."
+                )
+            z_raw = tmp.read(1, window=ventana).astype(np.float64)
+            out_transform = tmp.window_transform(ventana)
 
-    z_raw = out_image[0].astype(np.float64)
     rasterized_mask = rasterize(
         [(geom_poligono, 1)], out_shape=z_raw.shape, transform=out_transform,
         fill=0, default_value=1, dtype=np.uint8,
     )
     valid_mask = (rasterized_mask == 1) & (~np.isnan(z_raw)) & (z_raw > 0)
 
-    pw, ph = abs(out_transform[0]), abs(out_transform[4])
+    pw, ph = px_x, px_y
 
-    # Limitación conocida: para polígonos angostos, una fracción alta de
-    # píxeles válidos está cerca del borde, y el relleno con la media
-    # introduce un sesgo leve ahí. No se corrige aquí -- documentado como
-    # margen de incertidumbre (ver docstring del módulo).
-    z_grad_base = np.where(valid_mask, z_raw, np.nanmean(z_raw[valid_mask]) if np.any(valid_mask) else 0.0)
+    # Último recurso: si dentro de la ventana CON margen todavía queda algún
+    # NaN (nodata real del DEM, o el polígono está pegado al borde del
+    # raster completo), se rellena solo para el gradiente con el promedio
+    # LOCAL de esta ventana chica (no el promedio de toda la zona) -- mucho
+    # menor riesgo de un salto artificial que el relleno global anterior.
+    z_grad_base = z_raw
+    if np.any(np.isnan(z_raw)):
+        relleno_local = np.nanmean(z_raw) if np.any(~np.isnan(z_raw)) else 0.0
+        z_grad_base = np.where(np.isnan(z_raw), relleno_local, z_raw)
+
     dy, gx = np.gradient(z_grad_base, ph, pw)
     slope_rad = np.arctan(np.sqrt(gx**2 + dy**2))
     slope_deg = np.degrees(slope_rad)
@@ -603,16 +650,50 @@ def cargar_dem_utm(geojson_path, zonas_m, carpeta_srtm=None):
         transform, width, height = calculate_default_transform(
             src.crs, utm_crs, src.width, src.height, *src.bounds
         )
-        dst_array = np.empty((height, width), dtype=np.float32)
+
+        # CORRECCIÓN (02/09/2026, detectada en la corrida real de Texolo --
+        # el reproyectado salió con 4,853 celdas con "elevación" de
+        # -32768 msnm, imposible): el SRTM crudo (o el VRT/mosaico que arma
+        # el paquete 'elevation') trae vacíos de datos (voids) marcados con
+        # un centinela -- típicamente -32768. Antes, reproject() no recibía
+        # src_nodata, así que Resampling.bilinear promediaba esos vacíos
+        # con sus vecinos reales en vez de excluirlos, contaminando la
+        # elevación reproyectada con valores absurdos (y de ahí, más
+        # adelante, contaminando pendiente/factor_relieve/área 3D en
+        # cualquier celda cercana a un vacío).
+        # Se detecta el nodata declarado por el archivo (src.nodata) y,
+        # como red de seguridad adicional -- por si el VRT no trae esa
+        # etiqueta --, se trata también como vacío cualquier celda fuera de
+        # un rango de elevación físicamente plausible en la Tierra (-500 a
+        # 9000 msnm; el Everest son ~8849 msnm, el punto seco más bajo con
+        # asentamiento humano ronda -430 msnm). Esas celdas se excluyen
+        # ANTES de reproyectar (se marcan NaN), en vez de dejarlas
+        # interpolarse con datos reales.
+        src_arr = src.read(1).astype(np.float64)
+        src_nodata = src.nodata
+        valido_fisico = (src_arr > -500) & (src_arr < 9000)
+        if src_nodata is not None:
+            valido_fisico &= (src_arr != src_nodata)
+        n_vacios = int(np.sum(~valido_fisico))
+        if n_vacios > 0:
+            log(f"SRTM crudo ({tif_path}): {n_vacios} celdas fuera de rango físico plausible "
+                f"o marcadas nodata ({src_nodata}) -- se excluyen del remuestreo en vez de "
+                f"interpolarlas con vecinos reales (antes se colaban como elevación válida).",
+                nivel="WARN")
+        src_arr = np.where(valido_fisico, src_arr, np.nan)
+
+        dst_array = np.full((height, width), np.nan, dtype=np.float32)
         reproject(
-            source=rasterio.band(src, 1), destination=dst_array,
+            source=src_arr, destination=dst_array,
             src_transform=src.transform, src_crs=src.crs,
             dst_transform=transform, dst_crs=utm_crs, resampling=Resampling.bilinear,
+            src_nodata=np.nan, dst_nodata=np.nan,
         )
 
     meta_utm = {
         "driver": "GTiff", "height": height, "width": width,
         "count": 1, "dtype": "float32", "crs": utm_crs, "transform": transform,
+        "nodata": np.nan,
     }
     return geom_utm_nucleo, dst_array, meta_utm, utm_crs
 
